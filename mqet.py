@@ -83,7 +83,7 @@ def MQET(commuting_operators, D, r, g, vars):
     for func in integrand_functions:
       prod = prod * func
     q_s = sp.Poly(generate_q_s(r,g,s,prod, vars),vars[-1])
-    coeffs = np.array(q_s.all_coeffs(),dtype = complex)[::-1]
+    coeffs = np.array(q_s.all_coeffs(),dtype = np.real)[::-1]
     q_s = Polynomial(coeffs).convert(kind = Chebyshev)
     # Make B_s
     B_s = infinity_norm(q_s, [-1,1])
@@ -91,16 +91,16 @@ def MQET(commuting_operators, D, r, g, vars):
         B_s = B_s * infinity_norm(p_s[k], [-1,1])
     # Q_s block encoding
     encodings = []
-    if np.isclose(complex(infinity_norm(q_s, [-1,1])),0):
+    if np.isclose(np.real_if_close(infinity_norm(q_s, [-1,1])),0):
         continue
-    B.append(complex(B_s))
+    B.append(np.real_if_close(B_s))
     q_s_hat = q_s/infinity_norm(q_s, [-1,1])
     q_s_hat_bes = []
     q_s_hat_coefficients = []
     for i in range(len(q_s_hat.coef)):
       if q_s_hat.coef[i] != 0:
         q_s_hat_bes.append(ChebyshevPolynomial(commuting_operators[r], order=i))
-        q_s_hat_coefficients.append(complex(q_s_hat.coef[i]))
+        q_s_hat_coefficients.append(np.real_if_close(q_s_hat.coef[i]))
     if len(q_s_hat_bes) ==  1:
         encodings.append(q_s_hat_bes[0])
     else:
