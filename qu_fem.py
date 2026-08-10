@@ -393,7 +393,7 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
 """Function Operator LCU"""
 
 def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal_functions, function):
-  tuples = generate_gauss_tuples_plain(G, numel, d)
+  plain_tuples = generate_gauss_tuples_plain(G, numel, d)
   c_j_array = generate_c_j_array(j, nodal_functions, tuples)
   function_operators = []
   for x_l in tuples:
@@ -405,7 +405,8 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 5)
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, nodal_basis_map, function):
-  tuples = generate_gauss_tuples_plain(G, numel, d)
+  plain_tuples = generate_gauss_tuples_plain(G, numel, d)
+  weighted_tuples = 
   c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, tuples)
   function_operators = []
   for x_l in tuples:
@@ -418,7 +419,7 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, n
 
 """Finite Element Arrays/Vectors Assembly"""
 
-def construct_finite_element_array(G, numel, numnp, numnp_bits, d, nodal_basis_map, f):
+def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits, d, nodal_basis_map, f):
   block_encodings = []
   tensored_basis = cartproduct(range(nen_1D), repeat = d)
   for j,k in cartproduct(tensored_basis, repeat = 2):
