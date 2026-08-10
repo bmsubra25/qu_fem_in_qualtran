@@ -9,6 +9,7 @@ Original file is located at
 Imports
 """
 
+
 from itertools import product as cartproduct
 import math
 import random
@@ -345,33 +346,17 @@ def generate_gauss_tuples_plain(G, numel, d):
   poly_deriv = diff(poly, x)
   for x_k in poly.nroots():
     one_dimensional_points.append(x_k)
-  return list(cartproduct(one_dimensional_points, repeat = d))
-
-def generate_gauss_tuples_1D(G, numel, el, d):
-  gauss_tuples = []
-  x = sp.symbols("x")
-  poly = sp.Poly(legendre(G,x))
-  poly_deriv = diff(poly, x)
-  h = 1/(numel)
-  for x_k in poly.nroots():
-    w_k = 2 / (((1 - x_k**2))*(poly_deriv(x_k)**2))
-    x_k_el = h* (x_k + 1)/2 + h*el
-    w_k_el = (h/2)*w_k
-    gauss_tuples.append((w_k_el, x_k_el))
-  return gauss_tuples
-
-def generate_gauss_tuples(G, numel, d):
-  one_dimensional_points = generate_gauss_tuples_1D(G, numel, el, d)
-  higher_d_tuples = []
-  for tup in cartproduct(one_dimensional_points, repeat = d):
-    whole = []
+  coordinates = list(cartproduct(one_dimensional_points, repeat = d))
+  total_list = []
+  for point in coordinates:
     weight = 1
-    for index in tup:
-      whole.append(index[1])
-      weight = weight * index[0]
-    whole.append(weight)
-    higher_d_tuples.append(tuple(whole))
-  return higher_d_tuples
+    point_list = list(point)
+    for x_k in point:
+      weight = weight * 2/((1-(x_k ** 2))* ( (poly_deriv(x_k))**2))
+    point_list.append(weight)
+    total_list.append(tuple(point_list))
+  return total_list
+
 
 def generate_c_jk_array(j,k, nodal_basis_map, gauss_tuples):
   coeff_array = []
@@ -406,7 +391,7 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, nodal_basis_map, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
-  weighted_tuples = 
+  weighted_tuples =
   c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, tuples)
   function_operators = []
   for x_l in tuples:
@@ -439,6 +424,8 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits, d, nodal_b
     block_encodings.append(BlockEncodingProduct((a_j_be, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 5)
+
+
 
 """Boundary Conditions Operators"""
 
