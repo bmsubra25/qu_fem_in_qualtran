@@ -378,7 +378,7 @@ def generate_c_jk_array(j,k, nodal_basis_map, gauss_tuples):
   for i in range(len(gauss_tuples)):
     point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
     weight = gauss_tuples[i][-1]
-    coeff_array.append(weight * nodal_basis_map[(j,k)](*point))
+    coeff_array.append(float(weight * nodal_basis_map[(j,k)](*point)))
   return coeff_array
 
 def generate_c_j_array(j, nodal_functions, gauss_tuples):
@@ -386,7 +386,7 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
   for i in range(len(gauss_tuples)):
     point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
     weight = gauss_tuples[i][-1]
-    coeff_array.append(weight * np.real_if_close(nodal_functions[j](*point)))
+    coeff_array.append(float(weight * nodal_functions[j](*point)))
   return coeff_array
 
 """Function Operator LCU"""
