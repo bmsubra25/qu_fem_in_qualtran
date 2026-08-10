@@ -428,7 +428,7 @@ def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits, d, nodal
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 5)
 
-def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits, d, nodal_basis_functions, function):
+def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits, d, nodal_basis_functions, function):
   block_encodings = []
   tensored_basis = cartproduct(range(nen_1D), repeat = d)
   for j,k in cartproduct(tensored_basis, repeat = 2):
