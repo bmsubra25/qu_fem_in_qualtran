@@ -88,7 +88,7 @@ def MQET(commuting_operators, D, r, g, vars):
     # Make B_s
     B_s = infinity_norm(q_s, [-1,1])
     for k in range(len(p_s)):
-        B_s = B_s * infinity_norm(p_s[k], [-1,1])
+        B_s = B_s * np.real_if_close(infinity_norm(p_s[k], [-1,1]))
     # Q_s block encoding
     encodings = []
     if np.isclose(np.real_if_close(infinity_norm(q_s, [-1,1])),0):
