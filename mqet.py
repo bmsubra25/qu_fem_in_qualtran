@@ -83,7 +83,7 @@ def MQET(commuting_operators, D, r, g, vars):
     for func in integrand_functions:
       prod = prod * func
     q_s = sp.Poly(generate_q_s(r,g,s,prod, vars),vars[-1])
-    coeffs = np.array(q_s.all_coeffs(),dtype = np.real)[::-1]
+    coeffs = np.array(q_s.all_coeffs(),dtype = np.float)[::-1]
     q_s = Polynomial(coeffs).convert(kind = Chebyshev)
     # Make B_s
     B_s = infinity_norm(q_s, [-1,1])
