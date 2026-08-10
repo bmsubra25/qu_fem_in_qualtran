@@ -78,7 +78,7 @@ def MQET(commuting_operators, D, r, g, vars):
     div_functions = []
     for s_k in s:
       p_s.append(Chebyshev.basis(s_k))
-    integrand_functions = [g]+[sp.chebyshevt(s[i],vars[i])/sp.sqrt(1-vars[i]**2) for i in range(r)]
+    integrand_functions = [g.as_expr()]+[sp.chebyshevt(s[i],vars[i])/sp.sqrt(1-vars[i]**2) for i in range(r)]
     prod = 1
     for func in integrand_functions:
       prod = prod * func
@@ -100,7 +100,7 @@ def MQET(commuting_operators, D, r, g, vars):
     for i in range(len(q_s_hat.coef)):
       if q_s_hat.coef[i] != 0:
         q_s_hat_bes.append(ChebyshevPolynomial(commuting_operators[r], order=i))
-        q_s_hat_coefficients.append(q_s_hat.coef[i])
+        q_s_hat_coefficients.append(complex(q_s_hat.coef[i]))
     if len(q_s_hat_bes) ==  1:
         encodings.append(q_s_hat_bes[0])
     else:
