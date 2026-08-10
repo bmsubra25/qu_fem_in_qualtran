@@ -9,7 +9,6 @@ Original file is located at
 Imports
 """
 
-
 from itertools import product as cartproduct
 import math
 import random
@@ -379,9 +378,9 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
 
 def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal_functions, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
-  c_j_array = generate_c_j_array(j, nodal_functions, tuples)
+  c_j_array = generate_c_j_array(j, nodal_functions, plain_tuples)
   function_operators = []
-  for x_l in tuples:
+  for x_l in plain_tuples:
     commuting_operators = []
     for i in range(d):
       # XG,(i)ℓi
@@ -391,10 +390,9 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, nodal_basis_map, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
-  weighted_tuples =
-  c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, tuples)
+  c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, plain_tuples)
   function_operators = []
-  for x_l in tuples:
+  for x_l in plain_tuples:
     commuting_operators = []
     for i in range(d):
       # XG,(i)ℓi
