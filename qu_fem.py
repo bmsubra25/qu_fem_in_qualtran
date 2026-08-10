@@ -8,6 +8,12 @@ Original file is located at
 
 Imports
 """
+
+!git clone https://github.com/bmsubra25/qu_fem_in_qualtran
+!git clone https://github.com/ichuang/pyqsp
+!pip install -U qualtran
+!pip install pennylane cirq
+
 from itertools import product as cartproduct
 import math
 import random
@@ -16,6 +22,7 @@ import qu_fem_in_qualtran
 from qu_fem_in_qualtran.mqet import MQET
 from qu_fem_in_qualtran.quantum_linear_systems import qlsp_solver_prepared
 from qu_fem_in_qualtran.quantum_linear_systems import prep_vector
+from qualtran.bloqs.mod_arithmetic import *
 import cirq
 import numpy as np
 import pennylane as qml
@@ -86,166 +93,9 @@ from qualtran.bloqs.state_preparation import PrepareUniformSuperposition
 from sympy import diff
 import sympy as sp
 from sympy import degree
+from qualtran.bloqs.arithmetic import EqualsAConstant
 
-"""Position Operators/Q"""
-
-class z_i(Bloq):
-  def __init__(self, n, i):
-    self.n = n
-    self.i = i
-  @property
-  def signature(self):
-    return Signature([Register("point",QAny(self.n))])
-  def build_composite_bloq(self, bb, *, point):
-    point_array = bb.split(point)
-    point_array[self.n - self.i -1] = bb.add(ZGate(),q = point_array[self. n - self.i -1])
-    point = bb.join(point_array, dtype = QAny(self.n))
-    return {"point": point}
-
-def build_x(n):
-  N = 2**n
-  coeffs = [(N-1)/2]
-  unitaries = [Unitary(Identity(n))]
-  for i in range(n):
-    coeffs.append(-(0.5 * (2**i)))
-    unitaries.append(Unitary(z_i(n,i)))
-  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 3)
-
-class x_i(BlockEncoding):
-  def __init__(self, d, n, i):
-    self.d = d
-    self.n = n
-    self.i = i
-    self.x = build_x(n)
-  @property
-  def signature(self):
-    registers = [Register("system", QAny(self.n*self.d))]
-    registers.append(Register("ancilla", QAny(self.x.ancilla_bitsize) ))
-    registers.append(Register("resource", QAny(self.x.resource_bitsize)))
-    return Signature(registers)
-  @property
-  def alpha(self):
-    return self.x.alpha
-  @property
-  def ancilla_bitsize(self):
-    return self.x.ancilla_bitsize
-  @property
-  def epsilon(self):
-    return self.x.epsilon
-  @property
-  def resource_bitsize(self):
-    return self.x.resource_bitsize
-  @property
-  def signal_state(self):
-    return self.x.signal_state
-  @property
-  def system_bitsize(self):
-    return self.n*self.d
-  def build_composite_bloq(self, bb, *,system, ancilla, resource):
-    coords = bb.split(system)
-    coord = bb.join(coords[(self.d-self.i-1)*self.n: (self.d-self.i)*self.n])
-    coord,ancilla, resource = bb.add(self.x, system = coord, ancilla = ancilla, resource = resource)
-    split_coord = bb.split(coord)
-    to_join = np.concatenate((coords[0:(self.d-self.i-1)*self.n], split_coord,coords[(self.d-self.i)*self.n:]))
-    system = bb.join(to_join)
-    return {"system": system, "ancilla": ancilla, "resource": resource}
-
-"""Mesh Connectivity Block Encoding"""
-
-class o_l_numel(Bloq):
-  def __init__(self, numel, numel_bits):
-    self.numel = numel
-    self.numel_bits = numel_bits
-  @property
-  def signature(self):
-    return Signature([Register("el", QUInt(self.numel_bits)),Register("flag", QBit())])
-  def build_composite_bloq(self, bb, *, el, flag):
-    numel_reg = bb.allocate(dtype = QUInt(self.numel_bits))
-    numel_reg_bits = bb.split(numel_reg)
-    for index in range(self.numel_bits):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    numel_reg = bb.join(numel_reg_bits, dtype = QUInt(self.numel_bits))
-    numel_reg, el , flag = bb.add(GreaterThan(a_bitsize = self.numel_bits, b_bitsize = self.numel_bits), a = numel_reg, b = el, target = flag)
-    numel_reg_bits = bb.split(numel_reg)
-    for index in range(self.numel_bits):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    numel_reg = bb.join(numel_reg_bits)
-    bb.free(numel_reg)
-    return {"el": el, "flag": flag}
-
-class o_ix(Bloq):
-  def __init__(self,nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX):
-    self.nen_bits = nen_bits
-    self.width = max(numel_bits,numnp_bits)
-    inv = [[0 for _ in range(numnp)] for _ in range(nen)]
-    for j in range(nen):
-      for el in range(numel):
-        inv[j][IX[j][el]] = el
-    self.indexer = QROM([np.array(IX)],(self.nen_bits,self.width), (self.width,))
-    self.inverse = QROM([np.array(inv)],(self.nen_bits,self.width),(self.width,))
-  @property
-  def signature(self):
-    return Signature([Register("j", QUInt(self.nen_bits)),
-                      Register("el", QUInt(self.width))])
-  def build_composite_bloq(self,bb,*, j, el):
-    ancilla_reg = bb.allocate(self.width)
-    j, el, ancilla_reg = bb.add(self.indexer, selection0 = j, selection1 = el, target0_ = ancilla_reg)
-    el, ancilla_reg = bb.add(Swap(bitsize = self.width),x= el, y = ancilla_reg)
-    j, el, ancilla_reg = bb.add(self.inverse, selection0 =j, selection1 = el, target0_ = ancilla_reg)
-    bb.free(ancilla_reg)
-    return {"j": j, "el": el}
-
-class a_j_block_encoding(BlockEncoding):
-  def __init__(self,nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX, j):
-    self.oracle_ix = o_ix(nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX)
-    self.width = max(numel_bits,numnp_bits)
-    self.oracle_l_numel = o_l_numel(numel,self.width)
-    self.numel = numel
-    self.nen_bits = nen_bits
-    self.j = j
-  @property
-  def signature(self):
-    return Signature([Register("system", QUInt(self.width)),Register("ancilla", QAny(1))])
-  @property
-  def alpha(self):
-    return 1
-  @property
-  def ancilla_bitsize(self):
-    return 1
-  @property
-  def epsilon(self):
-    return 0
-  @property
-  def resource_bitsize(self):
-    return 0
-  @property
-  def signal_state(self):
-    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
-  @property
-  def system_bitsize(self):
-    return self.width
-  def build_composite_bloq(self,bb, *, system, ancilla):
-    # Allocating j bits
-    j = bb.allocate(dtype = QUInt(self.nen_bits))
-    j_reg_bits = bb.split(j)
-    for index in range(self.nen_bits):
-      if (self.j >> index) & 1:
-        j_reg_bits[self.nen_bits - index - 1] = bb.add(XGate(), q = j_reg_bits[self.nen_bits - index - 1])
-    j = bb.join(j_reg_bits, dtype = QUInt(self.nen_bits))
-    # Performing Computation
-    system, ancilla  = bb.add(self.oracle_l_numel,el = system, flag = ancilla)
-    ancilla= bb.add(XGate(), q = ancilla)
-    j, system = bb.add(self.oracle_ix,j = j,  el = system)
-    # Uncomputing j
-    j_reg_bits = bb.split(j)
-    for index in range(self.nen_bits):
-      if (self.j >> index) & 1:
-        j_reg_bits[self.nen_bits - index - 1] = bb.add(XGate(), q = j_reg_bits[self.nen_bits - index - 1])
-    j = bb.join(j_reg_bits, dtype = QUInt(self.nen_bits))
-    bb.free(j)
-    return {"system": system, "ancilla": ancilla}
+"""Adjoint BE Wrapper"""
 
 class AdjointBlockEncoding(BlockEncoding):
   def __init__(self,block_encoding):
@@ -274,38 +124,144 @@ class AdjointBlockEncoding(BlockEncoding):
   def build_composite_bloq(self, bb, system, ancilla):
     system, ancilla = bb.add(self.block_encoding.adjoint(),system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
-# May not use as the general form works anyway
-class a_jk_block_encoding(BlockEncoding):
-  def __init__(self,nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX,j, k):
-    a_j = a_j_block_encoding(nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX, j)
-    a_k = a_j_block_encoding(nen,numel,numnp,nen_bits,numel_bits,numnp_bits,IX, k)
-    self.a_jk = BlockEncodingProduct((a_j,AdjointBlockEncoding(a_k)))
-    self.width = max(numel_bits,numnp_bits)
-    self.nen_bits = nen_bits
-  @property
-  def alpha(self):
-    return self.a_jk.alpha
-  @property
-  def ancilla_bitsize(self):
-    return self.a_jk.ancilla_bitsize
-  @property
-  def epsilon(self):
-    return self.a_jk.epsilon
-  @property
-  def resource_bitsize(self):
-    return self.a_jk.resource_bitsize
-  @property
-  def signal_state(self):
-    return self.a_jk.signal_state
-  @property
-  def system_bitsize(self):
-    return self.a_jk.system_bitsize
+
+"""Position Operators/Q"""
+
+class z_i(Bloq):
+  def __init__(self, n, i):
+    self.n = n
+    self.i = i
   @property
   def signature(self):
-    return self.a_jk.signature
+    return Signature([Register("point",QAny(self.n))])
+  def build_composite_bloq(self, bb, *, point):
+    point_array = bb.split(point)
+    point_array[self.n - self.i -1] = bb.add(ZGate(),q = point_array[self. n - self.i -1])
+    point = bb.join(point_array, dtype = QAny(self.n))
+    return {"point": point}
+
+def build_x(n):
+  N = 2**n
+  coeffs = [(N-1)/2]
+  unitaries = [Unitary(Identity(n))]
+  for i in range(n):
+    coeffs.append(-(0.5 * (2**i)))
+    unitaries.append(Unitary(z_i(n,i)))
+  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 3)
+
+"""Mesh Connectivity Block Encoding"""
+
+class o_l_numel(Bloq):
+  def __init__(self, numel, numel_bits):
+    self.numel = numel
+    self.numel_bits = numel_bits
+  @property
+  def signature(self):
+    return Signature([Register("el", QUInt(self.numel_bits)),Register("flag", QBit())])
+  def build_composite_bloq(self, bb, *, el, flag):
+    numel_reg = bb.allocate(dtype = QUInt(self.numel_bits))
+    numel_reg_bits = bb.split(numel_reg)
+    for index in range(self.numel_bits):
+      if (self.numel >> index) & 1:
+        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
+    numel_reg = bb.join(numel_reg_bits, dtype = QUInt(self.numel_bits))
+    numel_reg, el , flag = bb.add(GreaterThan(a_bitsize = self.numel_bits, b_bitsize = self.numel_bits), a = numel_reg, b = el, target = flag)
+    numel_reg_bits = bb.split(numel_reg)
+    for index in range(self.numel_bits):
+      if (self.numel >> index) & 1:
+        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
+    numel_reg = bb.join(numel_reg_bits)
+    bb.free(numel_reg)
+    return {"el": el, "flag": flag}
+
+class O_IX_1D(Bloq):
+  def __init__(self, numnp_bits, nen, numel, j):
+    self.nen = nen
+    self.numnp_bits = numnp_bits
+    self.j = j
+    map = []
+    inverse_map = [0 for _ in range(2 ** numnp_bits)]
+    for el in range(numel):
+      op = (el * (nen - 1) + j) % (2 ** self.numnp_bits)
+      map.append(op)
+      inverse_map[op] = el
+    map = np.array(map)
+    inverse_map = np.array(inverse_map)
+    self.map = QROM((map,), (self.numnp_bits,), (self.numnp_bits,))
+    self.inv = QROM((inverse_map,), (self.numnp_bits,), (self.numnp_bits,))
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.numnp_bits))])
+  def build_composite_bloq(self, bb, *, system):
+    ret_val = bb.allocate(self.numnp_bits)
+    system, ret_val = bb.add(self.map, selection = system, target0_ = ret_val)
+    ret_val, system = bb.add(self.inv, selection = ret_val, target0_ = system)
+    bb.free(system)
+    return {"system": ret_val}
+
+class a_j_block_encoding_1D(BlockEncoding):
+  def __init__(self,numnp_bits, nen, numel, j):
+    self.oracle_ix = O_IX_1D(numnp_bits, nen, numel, j)
+    self.oracle_l_numel = o_l_numel(numel, numnp_bits)
+    self.numnp_bits = numnp_bits
+    self.j = j
+  @property
+  def signature(self):
+    return Signature([Register("system", QUInt(self.numnp_bits)),Register("ancilla", QAny(1))])
+  @property
+  def alpha(self):
+    return 1
+  @property
+  def ancilla_bitsize(self):
+    return 1
+  @property
+  def epsilon(self):
+    return 0
+  @property
+  def resource_bitsize(self):
+    return 0
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
+  @property
+  def system_bitsize(self):
+    return self.numnp_bits
   def build_composite_bloq(self,bb, *, system, ancilla):
-    system, ancilla = bb.add(self.a_jk, system = system, ancilla = ancilla,)
+    system, ancilla = bb.add(self.oracle_l_numel, el = system, flag = ancilla)
+    system = bb.add(self.oracle_ix, system = system)
+    ancilla = bb.add(XGate(), q= ancilla)
     return {"system": system, "ancilla": ancilla}
+
+class a_j_be(BlockEncoding):
+  def __init__(self,numnp_bits, nen_1D, numel, j, d):
+    self.one_dimensional_bes = [a_j_block_encoding_1D(numnp_bits, nen_1D,numel, j[i]) for i in range(d)]
+    self.operation = TensorProduct(block_encodings = tuple(self.one_dimensional_bes))
+  @property
+  def signature(self):
+    return self.operation.signature
+  @property
+  def alpha(self):
+    return self.operation.alpha
+  @property
+  def ancilla_bitsize(self):
+    return self.operation.ancilla_bitsize
+  @property
+  def epsilon(self):
+    return self.operation.epsilon
+  @property
+  def resource_bitsize(self):
+    return self.operation.resource_bitsize
+  @property
+  def signal_state(self):
+    return self.operation.signal_state
+  @property
+  def system_bitsize(self):
+    return self.operation.system_bitsize
+  def build_composite_bloq(self, bb, *, system, ancilla):
+    system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
+    return {"system": system, "ancilla": ancilla}
+
+"""Quadrature Point Position Operators"""
 
 class log_numel_projector(BlockEncoding):
   def __init__(self, numnp_bits, numel):
@@ -348,9 +304,6 @@ class log_numel_projector(BlockEncoding):
     ancilla = bb.add(XGate(),q = ancilla)
     bb.free(numel_reg)
     return {"system": system, "ancilla": ancilla}
-
-"""Quadrature Point Position Operators"""
-
 def generate_x_l_i_el(x_l_i, numel, n_bits, d):
   h = 1/numel
   coeff_1 = h * (x_l_i+ 1)/2
@@ -430,7 +383,7 @@ def generate_c_jk_array(j,k, nodal_basis_map, gauss_tuples):
   for i in range(len(gauss_tuples)):
     point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
     weight = gauss_tuples[i][-1]
-    coeff_array.append(weight * nodal_basis_map[j][k](*point))
+    coeff_array.append(weight * nodal_basis_map[(j,k)](*point))
   return coeff_array
 
 def generate_c_j_array(j, nodal_functions, gauss_tuples):
@@ -443,7 +396,7 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
 
 """Function Operator LCU"""
 
-def generate_function_operator_lcu_diag(G, nen, numel, numnp, numnp_bits, IX, d, j, nodal_functions, function):
+def generate_function_operator_lcu_diag(G, nen, numel, numnp, numnp_bits, d, j, nodal_functions, function):
   tuples = generate_gauss_tuples_plain(G, numel, d)
   c_j_array = generate_c_j_array(j, nodal_functions, tuples)
   function_operators = []
@@ -455,7 +408,7 @@ def generate_function_operator_lcu_diag(G, nen, numel, numnp, numnp_bits, IX, d,
     function_operators.append(MQET(commuting_operators, 5, d,function, function.gens))
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 5)
 
-def generate_function_operator_lcu_array(G, nen, numel, numnp, numnp_bits, IX, d, j, k, nodal_basis_map, function):
+def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, nodal_basis_map, function):
   tuples = generate_gauss_tuples_plain(G, numel, d)
   c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, tuples)
   function_operators = []
@@ -469,32 +422,32 @@ def generate_function_operator_lcu_array(G, nen, numel, numnp, numnp_bits, IX, d
 
 """Finite Element Arrays/Vectors Assembly"""
 
-def construct_finite_element_array(G, nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, d, nodal_basis_map, function):
+def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits, d, nodal_basis_map, function):
   block_encodings = []
-  for pair in cartproduct(range(nen),repeat = 2):
-    j, k = pair
-    a_j = a_j_block_encoding(nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, j)
-    a_k_adj = AdjointBlockEncoding(a_j_block_encoding(nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, k))
-    sum_functions = generate_function_operator_lcu_array(G, nen, numel, numnp, numnp_bits, IX, d, j, k, nodal_basis_map, function)
+  tensored_basis = cartproduct(range(nen_1D), repeat = d)
+  for j,k in cartproduct(tensored_basis, repeat = 2):
+    a_j = a_j_be(numnp_bits, nen_1D, numel, j, d)
+    a_k_adj = AdjointBlockEncoding(a_j_be(numnp_bits, nen_1D, numel, k, d))
+    sum_functions = generate_function_operator_lcu_array(G, numel, numnp, numnp_bits, d, j, k, nodal_basis_map, function)
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, a_k_adj)))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 5)
 
-def construct_source_vector_diag(G, nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, d, nodal_functions, source_function):
+def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits, d, nodal_basis_functions, function):
   block_encodings = []
-  for j in range(nen):
-    a_j = a_j_block_encoding(nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, j)
-    sum_functions = generate_function_operator_lcu_diag(G, nen, numel, numnp, numnp_bits, IX, d, j, nodal_functions, source_function)
-    block_encodings.append(BlockEncodingProduct((a_j, sum_functions, AdjointBlockEncoding(a_j))))
+  tensored_basis = cartproduct(range(nen_1D), repeat = d)
+  for j,k in cartproduct(tensored_basis, repeat = 2):
+    a_j = a_j_be(numnp_bits, nen_1D, numel, j, d)
+    sum_functions = generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal_basis_functions, function)
+    block_encodings.append(BlockEncodingProduct((a_j_be, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 5)
 
 """Boundary Conditions Operators"""
 
-class u_b(BlockEncoding):
-  def __init__(self, numnp_bits, marker_table):
+class u_b_1d(BlockEncoding):
+  def __init__(self, numnp_bits):
     self.numnp_bits = numnp_bits
-    self.table = QROM([np.array(marker_table)],(numnp_bits,),(1,))
   @property
   def signature(self):
     return Signature([Register("system",QAny(self.numnp_bits)),Register("ancilla",QBit())])
@@ -517,57 +470,41 @@ class u_b(BlockEncoding):
   def system_bitsize(self):
     return self.numnp_bits
   def build_composite_bloq(self,bb, *, system, ancilla):
-    system, ancilla = bb.add(self.table, selection = system, target0_ = ancilla)
+    equals_zero = EqualsAConstant(bitsize = self.numnp_bits, val = 0)
+    equals_edge = EqualsAConstant(bitsize = self.numnp_bits, val = 2 ** self.numnp_bits - 1)
+    system, ancilla = bb.add(equals_zero, x = system, target = ancilla)
+    system, ancilla = bb.add(equals_edge, x = system, target = ancilla)
     return {"system": system, "ancilla": ancilla}
 
-def enforce_boundary_conditions(bb, L, u_hat_unprepared, marker_table, numnp_bits, source_vector_diag):
-  # Creating matrices for multiplictation
-  operand_1 = BlockEncodingProduct(tuple([u_b(numnp_bits,marker_table),L,u_b(numnp_bits,marker_table)]))
-  operand_2 = LinearCombination(block_encodings = (Unitary(Identity(numnp_bits)),u_b(numnp_bits,marker_table)),lambd = (1.0,-1.0),lambd_bits = 1)
-  L_dirich = LinearCombination(block_encodings = (operand_1,operand_2),lambd = (1.0,1.0),lambd_bits = 1)
-  operand_3 = LinearCombination(block_encodings = (L, Unitary(Identity(numnp_bits))),lambd = (1.0,-1.0),lambd_bits = 1)
-  operand_4 = LinearCombination(block_encodings = (Unitary(Identity(numnp_bits)),u_b(numnp_bits,marker_table)),lambd = (1.0,-1.0),lambd_bits = 1)
-  operand_5 = BlockEncodingProduct(tuple([operand_3, operand_4]))
-  p_int_be = u_b(numnp_bits,marker_table)
-  # preparing vectors and ancillas
-  ancilla_u_hat = bb.allocate(operand_5.ancilla_bitsize)
-  resource_u_hat = bb.allocate(operand_5.resource_bitsize)
-  ancilla_b = bb.allocate(p_int_be.ancilla_bitsize)
-  ancilla_diag = bb.allocate(source_vector_diag.ancilla_bitsize)
-  resource_diag = bb.allocate(source_vector_diag.resource_bitsize)
-  b_dirich = bb.allocate(numnp_bits)
-  # Performing operations to produce right hand side(hadamard trick subtraction)
-  p_int_be_controlled = p_int_be.controlled(CtrlSpec())
-  operand_5_controlled = operand_5.controlled(CtrlSpec())
-  ctrl = bb.allocate(1)
-  ctrl = bb.add(Hadamard(), q= ctrl)
-  # Preparing b vector
-  prep_uniform_controlled = PrepareUniformSuperposition(n=2**source_vector_diag.system_bitsize).controlled(CtrlSpec())
-  diag_controlled = source_vector_diag.controlled(CtrlSpec())
-  ctrl, b_dirich  = bb.add(prep_uniform_controlled, ctrl = ctrl, target = b_dirich )
-  ctrl, b_dirich, ancilla_diag, resource_diag = bb.add(diag_controlled, ctrl = ctrl, system = b_dirich, ancilla = ancilla_diag, resource = resource_diag)
-  ctrl, b_dirich, ancilla_b = bb.add(p_int_be_controlled,ctrl = ctrl,system = b_dirich,ancilla = ancilla_b)
-  ctrl = bb.add(XGate(), q = ctrl)
-  # Controlled u hat prep
-  phase_bitsize = 5
-  u_hat_preparer = StatePreparationViaRotations(
-    phase_bitsize=phase_bitsize,
-    state_coefficients=tuple(u_hat_unprepared),
-    control_bitsize=1)
-  phase_gradient = bb.add(PhaseGradientState(phase_bitsize))
-  ctrl, b_dirich, phase_gradient = bb.add(
-    u_hat_preparer, prepare_control=ctrl, target_state=b_dirich, phase_gradient=phase_gradient)
-  bb.add(PhaseGradientState(bitsize=phase_bitsize).adjoint(), phase_grad=phase_gradient)
-  # Continued hadamard. trick
-  ctrl, b_dirich, ancilla_u_hat, resource_u_hat = bb.add(operand_5_controlled,ctrl = ctrl,system = b_dirich,ancilla = ancilla_u_hat, resource = resource_u_hat)
-  ctrl = bb.add(Hadamard(),q = ctrl)
-  # Postselects registers
-  bb.add(IntEffect(1, 1), val = ctrl)
-  bb.add(IntEffect(0, p_int_be.ancilla_bitsize), val = ancilla_b)
-  bb.add(IntEffect(0, source_vector_diag.ancilla_bitsize), val = ancilla_diag)
-  bb.add(IntEffect(0, source_vector_diag.resource_bitsize), val = resource_diag)
-  bb.add(IntEffect(0, operand_5.ancilla_bitsize), val = ancilla_u_hat)
-  bb.add(IntEffect(0, operand_5.resource_bitsize), val = resource_u_hat)
-  return qlsp_solver_prepared(None,L_dirich,b_dirich, bb)
+class u_b(BlockEncoding):
+  def __init__(self, numnp_bits, d):
+    self.numnp_bits = numnp_bits
+    self.d = d
+    encodings = [u_b_1d(numnp_bits) for _ in range(self.d)]
+    self.operation = TensorProduct(block_encodings = tuple(encodings))
+  @property
+  def signature(self):
+    return self.operation.signature
+  @property
+  def alpha(self):
+    return self.operation.alpha
+  @property
+  def ancilla_bitsize(self):
+    return self.operation.ancilla_bitsize
+  @property
+  def epsilon(self):
+    return self.operation.epsilon
+  @property
+  def resource_bitsize(self):
+    return self.operation.resource_bitsize
+  @property
+  def signal_state(self):
+    return self.operation.signal_state
+  @property
+  def system_bitsize(self):
+    return self.operation.system_bitsize
+  def build_composite_bloq(self,bb, *, system, ancilla):
+    system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
+    return {"system": system, "ancilla": ancilla}
 
 """Testing"""
