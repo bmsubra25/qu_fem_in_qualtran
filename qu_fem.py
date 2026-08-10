@@ -433,7 +433,7 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits, d, nodal_b
   tensored_basis = cartproduct(range(nen_1D), repeat = d)
   for j,k in cartproduct(tensored_basis, repeat = 2):
     a_j = a_j_be(numnp_bits, nen_1D, numel, j, d)
-    sum_functions = generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits, d, j, nodal_basis_functions, source_function)
+    sum_functions = generate_function_operator_lcu_diag(G, nen, numel, numnp, numnp_bits, d, j, nodal_basis_functions, source_function)
     block_encodings.append(BlockEncodingProduct((a_j_be, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 5)
