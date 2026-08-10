@@ -385,6 +385,7 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
   coeff_array = []
   for i in range(len(gauss_tuples)):
     point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
+    print(point)
     weight = gauss_tuples[i][-1]
     coeff_array.append(float(weight * nodal_functions[j](*point)))
   return coeff_array
