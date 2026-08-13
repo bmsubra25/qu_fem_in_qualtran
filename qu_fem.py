@@ -184,6 +184,8 @@ class O_IX_1D(Bloq):
     inverse_map = np.array(inverse_map)
     self.map = QROM((map,), (self.numnp_bits,), (self.numnp_bits,))
     self.inv = QROM((inverse_map,), (self.numnp_bits,), (self.numnp_bits,))
+    print(self.map.signature)
+    print(self.inv.signature)
   @property
   def signature(self):
     return Signature([Register("system", QAny(self.numnp_bits))])
