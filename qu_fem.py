@@ -62,6 +62,7 @@ from qualtran.bloqs.basic_gates import (
     ZeroState,
     ZGate,
 )
+from qualtran.bloqs.mod_arithmetic import CModMulK
 from qualtran.bloqs.basic_gates import Identity
 from qualtran.bloqs.block_encoding import (
     BlockEncoding,
@@ -90,7 +91,6 @@ from sympy import diff
 import sympy as sp
 from sympy import degree
 from qualtran.bloqs.arithmetic import EqualsAConstant
-
 """Adjoint BE Wrapper"""
 
 class AdjointBlockEncoding(BlockEncoding):
@@ -175,28 +175,46 @@ class O_IX_1D(Bloq):
     self.nen = nen
     self.numnp_bits = numnp_bits
     self.j = j
-    map = [0 for _ in range(2 ** numnp_bits)]
     self.numel = numel
-    inverse_map = [0 for _ in range(2 ** numnp_bits)]
-    for el in range(numel):
-      op = (el * (nen - 1) + j) % (2 ** self.numnp_bits)
-      map[el] = op
-      inverse_map[op] = el
-    map = np.array(map)
-    inverse_map = np.array(inverse_map)
-    self.map = QROM.build_from_data(np.asarray(map), target_bitsizes = (self.numnp_bits,))
-    self.inv = QROM.build_from_data(np.asarray(inverse_map),  target_bitsizes = (self.numnp_bits,))
-    print(self.map.signature)
-    print(self.inv.signature)
+
   @property
   def signature(self):
-    return Signature([Register("system", BQUInt(self.numnp_bits, 2 ** self.numnp_bits))])
+    return Signature([Register("system", QAny(self.numnp_bits))])
   def build_composite_bloq(self, bb, *, system):
-    ret_val = bb.allocate(self.numnp_bits)
-    system, ret_val = bb.add(self.map, selection = system, target0_ = ret_val)
-    ret_val, system = bb.add(self.inv, selection = ret_val, target0_ = system)
-    bb.free(system)
-    return {"system": ret_val}
+    # Creatring j
+    j_reg = bb.allocate(self.numnp_bits+1)
+    j_reg_bits = bb.split(j_reg)
+    for index in range(self.numnp_bits+1):
+      if (self.j >> index) & 1:
+        j_reg_bits[self.numnp_bits+1 - index - 1] = bb.add(XGate(), q = j_reg_bits[self.numnp_bits+1 - index - 1])
+    j_reg = bb.join(j_reg_bits)
+    # allocating and setting control
+    ctrl = bb.allocate(1)
+    ctrl = bb.add(XGate(), q = ctrl)
+    # Splitting and adding extra bits for modular ops
+    extra_bit = bb.allocate(1)
+    extra_bit_split = bb.split(extra_bit)
+    system_bits = bb.split(system)
+    system_extended = bb.join(np.concatenate([extra_bit_split, system_bits]))
+    # Applying ops
+    mul_gate = CModMulK(QUInt(self.numnp_bits+1), k = self.nen - 1 , mod= 2 ** self.numnp_bits)
+    ctrl, system_extended = bb.add(mul_gate, ctrl = ctrl, x = system_extended)
+    j_reg, system_extended = bb.add(ModAdd(bitsize = self.numnp_bits+1, mod = 2**self.numnp_bits), x = j_reg, y = system_extended)
+    ctrl = bb.add(XGate(), q = ctrl)
+    # Splitting and freeing
+    system_extended_bits = bb.split(system_extended)
+    extra_bit = system_extended_bits[0]
+    system = bb.join(system_extended_bits[1:])
+    j_reg_bits = bb.split(j_reg)
+    for index in range(self.numnp_bits+1):
+      if (self.j >> index) & 1:
+        j_reg_bits[self.numnp_bits+1 - index - 1] = bb.add(XGate(), q = j_reg_bits[self.numnp_bits+1 - index - 1])
+    j_reg = bb.join(j_reg_bits)
+    # freeing
+    bb.free(extra_bit)
+    bb.free(ctrl)
+    bb.free(j_reg)
+    return {"system": system}
 
 class a_j_block_encoding_1D(BlockEncoding):
   def __init__(self,numnp_bits, nen, numel, j):
