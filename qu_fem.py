@@ -41,6 +41,7 @@ from qualtran import (
     Signature,
     cirq_interop,
 )
+from qualtran import BQUInt
 from sympy import legendre
 from qualtran.bloqs import *
 from qualtran.bloqs.arithmetic import *
@@ -174,12 +175,12 @@ class O_IX_1D(Bloq):
     self.nen = nen
     self.numnp_bits = numnp_bits
     self.j = j
-    map = []
+    map = [0 for _ in range(2 ** numnp_bits)]
     self.numel = numel
     inverse_map = [0 for _ in range(2 ** numnp_bits)]
     for el in range(numel):
       op = (el * (nen - 1) + j) % (2 ** self.numnp_bits)
-      map.append(op)
+      map[el] = op
       inverse_map[op] = el
     map = np.array(map)
     inverse_map = np.array(inverse_map)
@@ -189,7 +190,7 @@ class O_IX_1D(Bloq):
     print(self.inv.signature)
   @property
   def signature(self):
-    return Signature([Register("system", BQUInt(self.numnp_bits,self.numel))])
+    return Signature([Register("system", BQUInt(self.numnp_bits, 2 ** self.numnp_bits))])
   def build_composite_bloq(self, bb, *, system):
     ret_val = bb.allocate(self.numnp_bits)
     system, ret_val = bb.add(self.map, selection = system, target0_ = ret_val)
