@@ -143,7 +143,7 @@ def build_x(n):
   for i in range(n):
     coeffs.append(-(0.5 * (2**i)))
     unitaries.append(Unitary(z_i(n,i)))
-  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 2)
+  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 1)
 
 """Mesh Connectivity Block Encoding"""
 
