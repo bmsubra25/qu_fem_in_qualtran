@@ -189,8 +189,8 @@ class O_IX_1D(Bloq):
     return Signature([Register("system", QAny(self.numnp_bits))])
   def build_composite_bloq(self, bb, *, system):
     ret_val = bb.allocate(self.numnp_bits)
-    system, ret_val = bb.add(self.map, selection = system, target0_ = ret_val)
-    ret_val, system = bb.add(self.inv, selection = ret_val, target0_ = system)
+    system, ret_val = bb.add(self.map, selection0_ = system, target0_ = ret_val)
+    ret_val, system = bb.add(self.inv, selection0_ = ret_val, target0_ = system)
     bb.free(system)
     return {"system": ret_val}
 
