@@ -182,8 +182,8 @@ class O_IX_1D(Bloq):
       inverse_map[op] = el
     map = np.array(map)
     inverse_map = np.array(inverse_map)
-    self.map = QROM.build_from_data(np.asarray(map), (self.numnp_bits,), (self.numnp_bits,))
-    self.inv = QROM.build_from_data(np.asarray(inverse_map), (self.numnp_bits,), (self.numnp_bits,))
+    self.map = QROM.build_from_data(np.asarray(map), selection_bitsizes = (self.numnp_bits,), target_bitsizes = (self.numnp_bits,))
+    self.inv = QROM.build_from_data(np.asarray(inverse_map), selection_bitsizes =  (self.numnp_bits,), target_bitsizes = (self.numnp_bits,))
     print(self.map.signature)
     print(self.inv.signature)
   @property
