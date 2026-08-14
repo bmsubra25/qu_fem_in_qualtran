@@ -9,6 +9,11 @@ Original file is located at
 Imports
 """
 
+!git clone https://github.com/bmsubra25/qu_fem_in_qualtran
+!git clone https://github.com/ichuang/pyqsp
+!pip install -U qualtran
+!pip install pennylane cirq
+
 from itertools import product as cartproduct
 import math
 import random
@@ -28,6 +33,7 @@ import sympy
 from numpy.polynomial import Chebyshev
 from qualtran.bloqs.bookkeeping import Partition
 from scipy.linalg import sqrtm
+import cmath
 from qualtran import (
     Bloq,
     BloqBuilder,
@@ -91,6 +97,7 @@ from sympy import diff
 import sympy as sp
 from sympy import degree
 from qualtran.bloqs.arithmetic import EqualsAConstant
+
 """Adjoint BE Wrapper"""
 
 class AdjointBlockEncoding(BlockEncoding):
@@ -120,6 +127,87 @@ class AdjointBlockEncoding(BlockEncoding):
   def build_composite_bloq(self, bb, system, ancilla):
     system, ancilla = bb.add(self.block_encoding.adjoint(),system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
+
+class UniformLCU(BlockEncoding):
+  def __init__(self, block_encodings):
+    self.unif = PrepareUniformSuperposition(n = len(block_encodings))
+    self.block_encodings = block_encodings
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.system_bitsize)), Register("ancilla", QAny(self.ancilla_bitsize)),
+                      Register("resource", QAny(self.resource_bitsize))])
+  @property
+  def alpha(self):
+    return sum([block_encoding.alpha for block_encoding in self.block_encodings])
+  @property
+  def ancilla_bitsize(self):
+    self.extra_bitsize = math.ceil(math.log(len(self.block_encodings), 2))
+    ancilla_bitsize = self.extra_bitsize + max([block_encoding.ancilla_bitsize for block_encoding in self.block_encodings])
+    return ancilla_bitsize
+  @property
+  def epsilon(self):
+    return sum([block_encoding.epsilon for block_encoding in self.block_encodings])
+  @property
+  def resource_bitsize(self):
+    return max([block_encoding.resource_bitsize for block_encoding in self.block_encodings])
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([self.ancilla_bitsize]))
+  @property
+  def system_bitsize(self):
+    return self.block_encodings[0].system_bitsize
+
+  def build_composite_bloq(self, bb, *, system, ancilla, resource):
+    ancilla_bits = bb.split(ancilla)
+    # Allocating and Setting up registers
+    control = bb.join(ancilla_bits[0:self.extra_bitsize])
+    rest_ancilla = bb.join(ancilla_bits[self.extra_bitsize:])
+    control = bb.add(self.unif, target = control)
+    # Main LCU loop
+    for index in range(len(self.block_encodings)):
+      block_encoding = self.block_encodings[index]
+      controlled_be = block_encoding.controlled(CtrlSpec(cvs = index, qdtypes = QAny(self.extra_bitsize)))
+      print(controlled_be.signature)
+      rest_ancilla_bits = bb.split(rest_ancilla)
+      resource_bits = bb.split(resource)
+      # splitting to used portions
+      if block_encoding.resource_bitsize > 0:
+        used_resource = bb.join(resource_bits[0:block_encoding.resource_bitsize])
+      else:
+        used_resource = bb.join(resource_bits)
+
+      if block_encoding.ancilla_bitsize > 0:
+        used_ancilla = bb.join(rest_ancilla_bits[0:block_encoding.ancilla_bitsize])
+      else:
+        used_ancilla = bb.join(rest_ancilla_bits)
+      # applying operation
+      if block_encoding.ancilla_bitsize == 0 and block_encoding.resource_bitsize == 0:
+        control, system = bb.add(controlled_be, ctrl = control, system = system)
+      elif block_encoding.ancilla_bitsize == 0:
+        control, system, used_esource = bb.add(controlled_be, ctrl = control, system = system, resource = used_resource)
+      elif block_encoding.resource_bitsize == 0:
+        control, system, used_ancilla = bb.add(controlled_be, ctrl = control, system = system, ancilla = used_ancilla)
+      else:
+        control, system, used_ancilla, used_resource = bb.add(controlled_be, ctrl = control, system = system, ancilla = used_ancilla, resource = used_resource)
+      # re-splitting
+      used_ancilla_bits = bb.split(used_ancilla)
+      used_resource_bits = bb.split(used_resource)
+      # rejoining
+      if block_encoding.ancilla_bitsize > 0:
+        rest_ancilla = bb.join(np.concatenate([used_ancilla_bits, rest_ancilla_bits[block_encoding.ancilla_bitsize:]]))
+      else:
+        rest_ancilla = bb.join(used_ancilla_bits)
+
+      if block_encoding.resource_bitsize > 0:
+        resource = bb.join(np.concatenate([used_resource_bits, resource_bits[block_encoding.resource_bitsize:]]))
+      else:
+        resource = bb.join(used_resource_bits)
+    control = bb.add(self.unif.adjoint(), target = control)
+    # rejoining and returning
+    control_bits = bb.split(control)
+    rest_ancilla_bits = bb.split(rest_ancilla)
+    ancilla = bb.join(np.concatenate([control_bits, rest_ancilla_bits]))
+    return {"system": system, "ancilla": ancilla, "resource": resource}
 
 """Position Operators/Q"""
 
@@ -443,8 +531,6 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, noda
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = tuple(block_encodings),lambd = tuple(coeffs),lambd_bits = 1)
-
-
 
 """Boundary Conditions Operators"""
 
