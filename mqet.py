@@ -92,6 +92,7 @@ def MQET(commuting_operators, D, r, g, vars):
     # Q_s block encoding
     encodings = []
     if np.isclose(np.real_if_close(infinity_norm(q_s, [-1,1])),0):
+        print("here")
         continue
     B.append(np.real_if_close(B_s))
     q_s_hat = q_s/infinity_norm(q_s, [-1,1])
@@ -109,9 +110,6 @@ def MQET(commuting_operators, D, r, g, vars):
     for k in range(len(s)):
       encodings.append(ChebyshevPolynomial(commuting_operators[k], order=s[k]))
     u_s_a_list.append(BlockEncodingProduct(tuple(encodings)))
-  if len(u_s_a_list) == 1:
-      u_s_a_list[0].alpha = u_s_a_list[0].alpha * 1/B[0]
-      return u_s_a_list[0]
   return LinearCombination(block_encodings = tuple(u_s_a_list), lambd = tuple(B), lambd_bits = 1)
 
 """testing
