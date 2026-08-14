@@ -9,6 +9,11 @@ Original file is located at
 Imports
 """
 
+!git clone https://github.com/bmsubra25/qu_fem_in_qualtran
+!git clone https://github.com/ichuang/pyqsp
+!pip install -U qualtran
+!pip install pennylane cirq
+
 from itertools import product as cartproduct
 import math
 import random
@@ -219,12 +224,14 @@ class z_i(Bloq):
     point = bb.join(point_array, dtype = QAny(self.n))
     return {"point": point}
 
-def build_x(n):
+def build_x(n, h, x_l_i):
+  coeff_1 = h * (x_l_i+ 1)/2
+  coeff_2 = h
   N = 2**n
-  coeffs = [(N-1)/2]
-  unitaries = [Unitary(Identity(n))]
+  coeffs = [coeff_1, (N-1)/2]
+  unitaries = [Unitary(Identity(n)),Unitary(Identity(n))]
   for i in range(n):
-    coeffs.append(-(0.5 * (2**i)))
+    coeffs.append(-(coeff_2 * 0.5 * (2**i)))
     unitaries.append(Unitary(z_i(n,i)))
   return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 1)
 
@@ -489,7 +496,7 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, no
     for i in range(d):
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
-    function_operators.append(MQET(commuting_operators, 5, d-1,function, function.gens))
+    function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 1)
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, function):
@@ -501,7 +508,7 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k
     for i in range(d):
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
-    function_operators.append(MQET(commuting_operators, 5, d-1,function, function.gens))
+    function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 1)
 
 """Finite Element Arrays/Vectors Assembly"""
