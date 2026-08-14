@@ -179,7 +179,7 @@ class UniformLCU(BlockEncoding):
       if block_encoding.ancilla_bitsize == 0 and block_encoding.resource_bitsize == 0:
         control, system = bb.add(controlled_be, ctrl = control, system = system)
       elif block_encoding.ancilla_bitsize == 0:
-        control, system, used_esource = bb.add(controlled_be, ctrl = control, system = system, resource = used_resource)
+        control, system, used_resource = bb.add(controlled_be, ctrl = control, system = system, resource = used_resource)
       elif block_encoding.resource_bitsize == 0:
         control, system, used_ancilla = bb.add(controlled_be, ctrl = control, system = system, ancilla = used_ancilla)
       else:
