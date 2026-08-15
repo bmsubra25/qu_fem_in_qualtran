@@ -411,17 +411,14 @@ class log_numel_projector(BlockEncoding):
     ancilla = bb.add(XGate(),q = ancilla)
     bb.free(numel_reg)
     return {"system": system, "ancilla": ancilla}
-def generate_x_l_i_el(x_l_i, numel, n_bits, d):
-  h = 1/numel
-  coeff_1 = h * (x_l_i+ 1)/2
-  coeff_2 = h
-  inner = LinearCombination(block_encodings = (Unitary(Identity(n_bits)), build_x(n_bits)), lambd = (coeff_1,coeff_2),lambd_bits = 1)
+def generate_x_l_i_el(x_l_i, numel, n_bits):
+  inner =  build_x(n_bits, 1/numel, x_l_i)
   return BlockEncodingProduct((log_numel_projector(n_bits,numel), inner))
 # ith coordinate of the lth gauss point for a certain element varies between elements
 class gauss_point_ith_coordinate(BlockEncoding):
   def __init__(self, x_l_i, numel, n_bits_1D, d, i):
     encodings = [log_numel_projector(numel = numel,numnp_bits_1D = n_bits_1D)] * d
-    encodings[d - i - 1] = generate_x_l_i_el(x_l_i = x_l_i, numel = numel, n_bits = n_bits_1D, d = d)
+    encodings[d - i - 1] = generate_x_l_i_el(x_l_i = x_l_i, numel = numel, n_bits = n_bits_1D)
     self.operation = TensorProduct(block_encodings = tuple(encodings))
   @property
   def signature(self):
