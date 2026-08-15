@@ -163,10 +163,10 @@ print(len(tensored_basis))
 
 """Poisson's Problem"""
 
-G = 2
-numel_1D = 1023
-numnp = 1048576
-numnp_bits_1D = 10
+"""G = 2
+numel_1D =
+numnp = 
+numnp_bits_1D = 
 x = sp.symbols("x")
 y = sp.symbols("y")
 source_function = sp.poly(x ** 2 + y **2)
@@ -186,4 +186,4 @@ out = bb.finalize(system = system, ancilla = ancilla, resource = resource)
 
 circuit, quregs = out.to_cirq_circuit_and_quregs()
 sim = cirq.Simulator()
-result = sim.simulate(circuit, qubit_order = sorted(circuit.all_qubits()), initial_state = 0)
+result = sim.simulate(circuit, qubit_order = sorted(circuit.all_qubits()), initial_state = 0)"""
