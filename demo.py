@@ -11,22 +11,34 @@ Imports
 
 !git clone https://github.com/bmsubra25/qu_fem_in_qualtran
 !git clone https://github.com/ichuang/pyqsp
-!pip install -U qualtran
+!pip install qualtran
 !pip install pennylane cirq
-!pip install scikit-fem
 
 """Imports"""
 
+import qualtran
+import importlib
+import inspect
+from pathlib import Path
+from qualtran.simulation.tensor import cbloq_to_quimb
+import qualtran.bloqs.block_encoding as _block_encoding_module
+from qualtran.cirq_interop import BloqAsCirqGate
 import qu_fem_in_qualtran
 from qu_fem_in_qualtran import *
 from itertools import product as cartproduct
+from itertools import combinations
 import math
 import random
 from typing import *
+
 from qu_fem_in_qualtran.qu_fem import construct_source_vector_diag
 from qu_fem_in_qualtran.mqet import MQET
-from qu_fem_in_qualtran.quantum_linear_systems import qlsp_solver_prepared
-from qu_fem_in_qualtran.quantum_linear_systems import prep_vector
+from qu_fem_in_qualtran.quantum_linear_systems import (
+    prep_vector,
+    qlsp_solver_prepared,
+)
+from qualtran.simulation.tensor import bloq_to_dense
+
 import cirq
 import numpy as np
 import pennylane as qml
@@ -34,9 +46,12 @@ import pyqsp
 import qualtran
 import qualtran.simulation as sim
 import sympy
+import sympy as sp
+
 from numpy.polynomial import Chebyshev
-from qualtran.bloqs.bookkeeping import Partition
 from scipy.linalg import sqrtm
+from sympy import degree, diff, legendre
+
 from qualtran import (
     Bloq,
     BloqBuilder,
@@ -50,14 +65,16 @@ from qualtran import (
     Signature,
     cirq_interop,
 )
-from sympy import legendre
+
 from qualtran.bloqs import *
 from qualtran.bloqs.arithmetic import *
 from qualtran.bloqs.arithmetic.permutation import Permutation
+
 from qualtran.bloqs.basic_gates import (
     CNOT,
     GlobalPhase,
     Hadamard,
+    Identity,
     IntEffect,
     OneEffect,
     OneState,
@@ -70,7 +87,6 @@ from qualtran.bloqs.basic_gates import (
     ZeroState,
     ZGate,
 )
-from qualtran.bloqs.basic_gates import Identity
 from qualtran.bloqs.block_encoding import (
     BlockEncoding,
     LinearCombination,
@@ -78,26 +94,25 @@ from qualtran.bloqs.block_encoding import (
     TensorProduct,
     Unitary,
 )
+
+from qualtran.bloqs.bookkeeping import Partition
 from qualtran.bloqs.data_loading.qrom import QROM
 from qualtran.bloqs.qsp.generalized_qsp import GeneralizedQSP
 from qualtran.bloqs.reflections.prepare_identity import PrepareIdentity
 from qualtran.bloqs.rotations.phase_gradient import PhaseGradientState
+from qualtran.bloqs.state_preparation import PrepareUniformSuperposition
 from qualtran.bloqs.state_preparation.black_box_prepare import BlackBoxPrepare
 from qualtran.bloqs.state_preparation.state_preparation_via_rotation import (
     StatePreparationViaRotations,
 )
-from itertools import combinations
+
 from qualtran.cirq_interop import CirqGateAsBloq
+
 from qualtran.drawing import (
     show_bloq,
     show_call_graph,
     show_counts_sigma,
 )
-from qualtran.bloqs.state_preparation import PrepareUniformSuperposition
-from sympy import diff
-import sympy as sp
-from sympy import degree
-import skfem
 
 """Helper Functions"""
 
@@ -115,60 +130,60 @@ def generate_lagrange_basis_1D(p, v, index):
   return sp.Poly(poly, v)
 
 def generate_lagrange_basis(p, indices):
-  vars = generate_vars(len(indices))
+  vars = list(generate_vars(len(indices))) if type(generate_vars(len(indices))) != list else generate_vars(len(indices))
   func = 1
   for i in range(len(indices)):
     func = func * generate_lagrange_basis_1D(p, vars[i], indices[i])
   return sp.Poly(func, vars)
-generate_lagrange_basis(2, [0,1])
 
 """Mesh Creation/Mesh Parameter Setting"""
 
-# number of nodes per element
-nen = 4
-# number of nodal points total
-numnp = 4096
-# bits to represent these
-nen_bits = math.ceil(math.log(nen, 2))
-numnp_bits = math.ceil(math.log(numnp, 2))
+# number of nodes per element. Set nen = (p+1)^d where p is the number of 1d local nodes you want
+nen = 2
 # dimension of space
 d = 2
-# interval setting
-interval_start = 0.0
-interval_end = 10.0
-# mesh creation
-space = []
-for i in range(d):
-  space.append(np.linspace(interval_start,interval_end,int(numnp ** (1/d))))
-mesh = skfem.MeshQuad.init_tensor(*space)
-numel = mesh.t.shape[1]
-numel_bits = math.ceil(math.log(numel, 2))
-IX = mesh.t
-reference = mesh.init_refdom()
+p = 1
 
 """Function Definitions"""
 
-nodal_reference_functions = []
-for col in range(nen):
-  coords = []
-  for row in range(len(list(reference.p))):
-    coords.append(reference.p[row][col])
-  nodal_reference_functions.append(generate_lagrange_basis(int(math.log(nen, 2)-1), coords))
+tensored_basis = list(cartproduct(range(p+1), repeat = d))
+nodal_reference_functions = {}
+for j in tensored_basis:
+  nodal_reference_functions[j] = (generate_lagrange_basis(p, list(j)))
 # int(dN_i * dN_j)
-nodal_basis_map_k = []
+nodal_basis_map_k = {}
 # int(N_i * N_j)
-nodal_basis_map_m = []
+nodal_basis_map_m = {}
+for j,k in cartproduct(tensored_basis, repeat = 2):
+    nodal_basis_map_k[(j,k)] = diff(nodal_reference_functions[j])*diff(nodal_reference_functions[k])
 
-for j in range(len(nodal_reference_functions)):
-  for k in range(len(nodal_reference_functions)):
-    nodal_basis_map_k.append(diff(nodal_reference_functions[j])*diff(nodal_reference_functions[k]))
-
-for j in range(len(nodal_reference_functions)):
-  for k in range(len(nodal_reference_functions)):
-    nodal_basis_map_m.append(nodal_reference_functions[j]*nodal_reference_functions[k])
+for j,k in cartproduct(tensored_basis, repeat = 2):
+    nodal_basis_map_m[(j,k)] = nodal_reference_functions[j]*nodal_reference_functions[k]
+print(len(tensored_basis))
 
 """Poisson's Problem"""
 
+G = 2
+numel_1D = 1023
+numnp = 1048576
+numnp_bits_1D = 10
 x = sp.symbols("x")
-source_function = sp.poly(x ** 2,x)
-construct_source_vector_diag(5, nen, numel, numnp, nen_bits, numel_bits, numnp_bits, IX, d, nodal_reference_functions, source_function)
+y = sp.symbols("y")
+source_function = sp.poly(x ** 2 + y **2)
+diag_operator = construct_source_vector_diag(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_reference_functions, source_function)
+
+bb = BloqBuilder()
+print(diag_operator.system_bitsize)
+print(diag_operator.ancilla_bitsize)
+print(diag_operator.resource_bitsize)
+system = bb.allocate(diag_operator.system_bitsize)
+ancilla = bb.allocate(diag_operator.ancilla_bitsize)
+resource = bb.allocate(diag_operator.resource_bitsize)
+prep_uniform_controlled = PrepareUniformSuperposition(n=2**diag_operator.system_bitsize)
+system = bb.add(prep_uniform_controlled, target = system)
+system, ancilla, resource = bb.add(diag_operator, system = system, ancilla = ancilla, resource = resource)
+out = bb.finalize(system = system, ancilla = ancilla, resource = resource)
+
+circuit, quregs = out.to_cirq_circuit_and_quregs()
+sim = cirq.Simulator()
+result = sim.simulate(circuit, qubit_order = sorted(circuit.all_qubits()), initial_state = 0)
