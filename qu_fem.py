@@ -9,11 +9,6 @@ Original file is located at
 Imports
 """
 
-!git clone https://github.com/bmsubra25/qu_fem_in_qualtran
-!git clone https://github.com/ichuang/pyqsp
-!pip install qualtran
-!pip install pennylane cirq
-
 from itertools import product as cartproduct
 import math
 import random
