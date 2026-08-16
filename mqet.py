@@ -68,7 +68,7 @@ def infinity_norm(p, range):
   return max([sp.Abs(p(root)) for root in roots if range[0] <= root and root <= range[1]] + [sp.Abs(p(range[0]))]+[sp.Abs(p(range[1]))])
 
 """Core MQET"""
-
+    
 # Assues g is a sympy polynomial
 def MQET(commuting_operators, D, r, g, vars):
   g = sp.Poly(g.as_expr().subs({
@@ -114,9 +114,9 @@ def MQET(commuting_operators, D, r, g, vars):
     for k in range(len(s)):
       encodings.append(ChebyshevPolynomial(commuting_operators[k], order=s[k]))
     u_s_a_list.append(BlockEncodingProduct(tuple(encodings)))
-  if len(B) == 1 and B[0] == 1.0:
-      return u_s_a_list[0]
-  print(B[0])
+  if len(B) == 1:
+      return LinearCombination(block_encodings = (u_s_a_list[0],u_s_a_list[0]), lambd = (B/2,B/2) ,lambd_bits = 1)
+      
   return LinearCombination(block_encodings = tuple(u_s_a_list), lambd = tuple(B), lambd_bits = 1)
 
 """testing
