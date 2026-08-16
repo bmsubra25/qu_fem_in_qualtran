@@ -490,7 +490,6 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, no
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  c_j_array = [c_j_array[i] * function_operators[i].alpha for i in range(len(c_j_array))]
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 2)
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, function):
@@ -503,7 +502,6 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  c_jk_array = [c_jk_array[i] * function_operators[i].alpha for i in range(len(c_jk_array))]
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 2)
 
 """Finite Element Arrays/Vectors Assembly"""
