@@ -265,8 +265,8 @@ class O_IX_1D(Bloq):
 
   @property
   def signature(self):
-    return Signature([Register("system", QAny(self.numnp_bits_1D))])
-  def build_composite_bloq(self, bb, *, system):
+    return Signature([Register("system", QAny(self.numnp_bits_1D)), Register("ctrl", QAny(1))])
+  def build_composite_bloq(self, bb, *, system, ctrl):
     # Creatring j
     j_reg = bb.allocate(self.numnp_bits_1D+1)
     j_reg_bits = bb.split(j_reg)
@@ -275,7 +275,6 @@ class O_IX_1D(Bloq):
         j_reg_bits[self.numnp_bits_1D+1 - index - 1] = bb.add(XGate(), q = j_reg_bits[self.numnp_bits_1D+1 - index - 1])
     j_reg = bb.join(j_reg_bits)
     # allocating and setting control
-    ctrl = bb.allocate(1)
     ctrl = bb.add(XGate(), q = ctrl)
     # Splitting and adding extra bits for modular ops
     extra_bit = bb.allocate(1)
@@ -298,7 +297,6 @@ class O_IX_1D(Bloq):
     j_reg = bb.join(j_reg_bits)
     # freeing
     bb.free(extra_bit)
-    bb.free(ctrl)
     bb.free(j_reg)
     return {"system": system}
 
@@ -331,7 +329,7 @@ class a_j_block_encoding_1D(BlockEncoding):
     return self.numnp_bits_1D
   def build_composite_bloq(self,bb, *, system, ancilla):
     system, ancilla = bb.add(self.oracle_l_numel, el = system, flag = ancilla)
-    system = bb.add(self.oracle_ix, system = system)
+    system, ancilla = bb.add(self.oracle_ix, system = system, ctrl = ancilla)
     ancilla = bb.add(XGate(), q= ancilla)
     return {"system": system, "ancilla": ancilla}
 
