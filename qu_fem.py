@@ -9,6 +9,11 @@ Original file is located at
 Imports
 """
 
+!git clone https://github.com/bmsubra25/qu_fem_in_qualtran
+!git clone https://github.com/ichuang/pyqsp
+!pip install qualtran
+!pip install pennylane cirq
+
 from itertools import product as cartproduct
 import math
 import random
@@ -119,9 +124,8 @@ class AdjointBlockEncoding(BlockEncoding):
   @property
   def system_bitsize(self):
     return self.block_encoding.system_bitsize
-  def build_composite_bloq(self, bb, system, ancilla, resource):
-    system, ancilla, resource = bb.add(self.block_encoding.adjoint(),system = system, ancilla = ancilla, resource = resource)
-    return {"system": system, "ancilla": ancilla, "resource": resource}
+  def build_composite_bloq(self, bb, **soqs):
+    return bb.add(self.block_encoding.adjoint(),**soqs,)
 
 class UniformLCU(BlockEncoding):
   def __init__(self, block_encodings):
