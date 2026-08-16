@@ -32,6 +32,7 @@ import random
 from typing import *
 
 from qu_fem_in_qualtran.qu_fem import construct_source_vector_diag
+from qu_fem_in_qualtran.qu_fem import construct_finite_element_array
 from qu_fem_in_qualtran.mqet import MQET
 from qu_fem_in_qualtran.quantum_linear_systems import (
     prep_vector,
@@ -139,10 +140,14 @@ def generate_lagrange_basis(p, indices):
 """Mesh Creation/Mesh Parameter Setting"""
 
 # number of nodes per element. Set nen = (p+1)^d where p is the number of 1d local nodes you want
-nen = 2
-# dimension of space
-d = 2
+G = 4
 p = 1
+nen_1D = 2
+numel_1D = 1
+numnp_1D = 2
+numnp_bits_1D = 1
+d = 2
+numnp = 4
 
 """Function Definitions"""
 
@@ -163,27 +168,15 @@ print(len(tensored_basis))
 
 """Poisson's Problem"""
 
-"""G = 2
-numel_1D =
-numnp = 
-numnp_bits_1D = 
 x = sp.symbols("x")
 y = sp.symbols("y")
-source_function = sp.poly(x ** 2 + y **2)
+source_function = sp.poly(x*y)
 diag_operator = construct_source_vector_diag(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_reference_functions, source_function)
+#stiffness_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_k, source_function)
+#mass_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_m, source_function)
 
-bb = BloqBuilder()
-print(diag_operator.system_bitsize)
-print(diag_operator.ancilla_bitsize)
-print(diag_operator.resource_bitsize)
-system = bb.allocate(diag_operator.system_bitsize)
-ancilla = bb.allocate(diag_operator.ancilla_bitsize)
-resource = bb.allocate(diag_operator.resource_bitsize)
-prep_uniform_controlled = PrepareUniformSuperposition(n=2**diag_operator.system_bitsize)
-system = bb.add(prep_uniform_controlled, target = system)
-system, ancilla, resource = bb.add(diag_operator, system = system, ancilla = ancilla, resource = resource)
-out = bb.finalize(system = system, ancilla = ancilla, resource = resource)
+print(f"system {diag_operator.system_bitsize}, ancilla {diag_operator.ancilla_bitsize}, resource {diag_operator.resource_bitsize}, alpha {diag_operator.alpha}, epsilon: {diag_operator.epsilon} diagonal")
+#print(f"system {stiffness_matrix.system_bitsize}, ancilla {stiffness_matrix.ancilla_bitsize}, resource {stiffness_matrix.resource_bitsize}, alpha {stiffness_matrix.alpha}, epsilon: {stiffness_matrix.epsilon}  stiffness")
+#print(f"system {mass_matrix.system_bitsize}, ancilla {mass_matrix.ancilla_bitsize}, resource {mass_matrix.resource_bitsize}, alpha {mass_matrix.alpha}, epsilon: {mass_matrix.epsilon} mass")
 
-circuit, quregs = out.to_cirq_circuit_and_quregs()
-sim = cirq.Simulator()
-result = sim.simulate(circuit, qubit_order = sorted(circuit.all_qubits()), initial_state = 0)"""
+print(diag_operator.tensor_contract())
