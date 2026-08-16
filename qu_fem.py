@@ -253,7 +253,7 @@ class o_l_numel(Bloq):
     for index in range(self.numel_bits):
       if (self.numel >> index) & 1:
         numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    ancilla = bb.join(np.asarray([*numel_reg_bits,flag, spare]))
+    ancilla = bb.join(np.asarray([*numel_reg_bits,flag, *spare]))
     return {"el": el, "ancilla": ancilla}
 
 class O_IX_1D(Bloq):
