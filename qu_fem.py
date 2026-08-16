@@ -239,8 +239,9 @@ class o_l_numel(Bloq):
     return Signature([Register("el", QAny(self.numel_bits)),Register("ancilla", QAny(1+1+self.numel_bits + 1))])
   def build_composite_bloq(self, bb, *, el, ancilla):
     ancilla_bits = bb.split(ancilla)
-    numel_reg = bb.join(ancilla_bits[0:len(ancilla_bits)-1])
-    flag = bb.join(ancilla_bits[len(ancilla_bits)-1:])
+    numel_reg = bb.join(ancilla_bits[:self.numel_bits])
+    flag = bb.join(ancilla_bits[self.numel_bits:self.numel_bits+1])
+    spare = bb.join(ancilla_bits[self.numel_bits+1:])
     numel_reg_bits = bb.split(numel_reg)
     for index in range(self.numel_bits):
       if (self.numel >> index) & 1:
@@ -252,7 +253,7 @@ class o_l_numel(Bloq):
     for index in range(self.numel_bits):
       if (self.numel >> index) & 1:
         numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    ancilla = bb.join(np.asarray([*numel_reg_bits,flag]))
+    ancilla = bb.join(np.asarray([*numel_reg_bits,flag, spare]))
     return {"el": el, "ancilla": ancilla}
 
 class O_IX_1D(Bloq):
