@@ -125,7 +125,7 @@ class AdjointBlockEncoding(BlockEncoding):
   def system_bitsize(self):
     return self.block_encoding.system_bitsize
   def build_composite_bloq(self, bb, **soqs):
-    return bb.add(self.block_encoding.adjoint(),**soqs,)
+    return bb.add_d(self.block_encoding.adjoint(),**soqs,)
 
 class UniformLCU(BlockEncoding):
   def __init__(self, block_encodings):
