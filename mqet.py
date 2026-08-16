@@ -72,8 +72,8 @@ def infinity_norm(p, range):
 # Assues g is a sympy polynomial
 def MQET(commuting_operators, D, r, g, vars):
   g = sp.Poly(g.as_expr().subs({
-      function.gens[i]: 
-          commuting_operators[i].alpha * function.gens[i]
+      g.gens[i]: 
+          commuting_operators[i].alpha * g.gens[i]
       for i in range(r+1)             
       }, simultaneous = True), *g.gens)
   u_s_a_list = []
