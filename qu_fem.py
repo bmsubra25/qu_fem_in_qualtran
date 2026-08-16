@@ -298,7 +298,7 @@ class O_IX_1D(Bloq):
     # freeing
     bb.free(extra_bit)
     bb.free(j_reg)
-    return {"system": system}
+    return {"system": system, "ctrl": ctrl}
 
 class a_j_block_encoding_1D(BlockEncoding):
   def __init__(self,numnp_bits_1D, nen, numel, j):
