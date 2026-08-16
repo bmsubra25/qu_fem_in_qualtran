@@ -116,6 +116,7 @@ def MQET(commuting_operators, D, r, g, vars):
     u_s_a_list.append(BlockEncodingProduct(tuple(encodings)))
   if len(B) == 1 and B[0] == 1.0:
       return u_s_a_list[0]
+  print(B[0])
   return LinearCombination(block_encodings = tuple(u_s_a_list), lambd = tuple(B), lambd_bits = 1)
 
 """testing
