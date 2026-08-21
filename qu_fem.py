@@ -511,7 +511,7 @@ def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, no
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, a_k_adj)))
   #coeffs = [1.0 for _ in range(len(block_encodings))]
   #LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
-  return UniformLCU(block_encodings = function_operators)
+  return UniformLCU(block_encodings = block_encodings)
 
 def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_functions, source_function):
   block_encodings = []
@@ -522,7 +522,7 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, noda
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, AdjointBlockEncoding(a_j))))
   #coeffs = [1.0 for _ in range(len(block_encodings))]
   #return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
-  return UniformLCU(block_encodings = function_operators)
+  return UniformLCU(block_encodings = block_encodings)
 
 class u_b_1d(BlockEncoding):
   def __init__(self, numnp_bits_1D):
