@@ -13,13 +13,21 @@ Imports
 !git clone https://github.com/ichuang/pyqsp
 !pip install qualtran
 !pip install pennylane cirq
+!pip install qsimcirq
 
 """Imports"""
 
 import qualtran
 import importlib
+import qsimcirq
+import pennylane as qml
+from pennylane.wires import Wires
+from qualtran.bloqs.mcmt import MultiAnd
+from qualtran.drawing import show_bloq
+from qualtran.bloqs.mcmt import And
 import inspect
 from pathlib import Path
+from qualtran.bloqs.basic_gates import Toffoli
 from qualtran.simulation.tensor import cbloq_to_quimb
 import qualtran.bloqs.block_encoding as _block_encoding_module
 from qualtran.cirq_interop import BloqAsCirqGate
@@ -66,7 +74,7 @@ from qualtran import (
     Signature,
     cirq_interop,
 )
-
+from qu_fem_in_qualtran.qu_fem import AdjointBlockEncoding
 from qualtran.bloqs import *
 from qualtran.bloqs.arithmetic import *
 from qualtran.bloqs.arithmetic.permutation import Permutation
@@ -151,7 +159,7 @@ numnp = 4
 
 """Function Definitions"""
 
-tensored_basis = list(cartproduct(range(p+1), repeat = d))
+tensored_basis = list(cartproduct(range(nen_1D), repeat = d))
 nodal_reference_functions = {}
 for j in tensored_basis:
   nodal_reference_functions[j] = (generate_lagrange_basis(p, list(j)))
@@ -164,14 +172,14 @@ for j,k in cartproduct(tensored_basis, repeat = 2):
 
 for j,k in cartproduct(tensored_basis, repeat = 2):
     nodal_basis_map_m[(j,k)] = nodal_reference_functions[j]*nodal_reference_functions[k]
-print(len(tensored_basis))
+print(tensored_basis)
 
 """Poisson's Problem"""
 
 x = sp.symbols("x")
 y = sp.symbols("y")
 source_function = sp.poly(x*y)
-diag_operator = construct_source_vector_diag(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_reference_functions, source_function)
+diag_operator = construct_source_vector_diag(G, nen_1D, numel_1D, numnp, numnp_bits_1D, d, nodal_reference_functions, source_function)
 #stiffness_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_k, source_function)
 #mass_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_m, source_function)
 
@@ -179,4 +187,9 @@ print(f"system {diag_operator.system_bitsize}, ancilla {diag_operator.ancilla_bi
 #print(f"system {stiffness_matrix.system_bitsize}, ancilla {stiffness_matrix.ancilla_bitsize}, resource {stiffness_matrix.resource_bitsize}, alpha {stiffness_matrix.alpha}, epsilon: {stiffness_matrix.epsilon}  stiffness")
 #print(f"system {mass_matrix.system_bitsize}, ancilla {mass_matrix.ancilla_bitsize}, resource {mass_matrix.resource_bitsize}, alpha {mass_matrix.alpha}, epsilon: {mass_matrix.epsilon} mass")
 
-print(diag_operator.tensor_contract())
+bb = BloqBuilder()
+system = bb.allocate(diag_operator.system_bitsize)
+ancilla = bb.allocate(diag_operator.ancilla_bitsize)
+resource = bb.allocate(diag_operator.resource_bitsize)
+system, ancilla, resource = bb.add(diag_operator, system = system, ancilla = ancilla, resource = resource)
+out = bb.finalize(system = system, ancilla = ancilla, resource = resource)
