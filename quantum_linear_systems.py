@@ -232,9 +232,9 @@ def qlsp_solver(n, A, b, bb):
   f_A_Poly_Adj= f_A_Poly_Adj.controlled(CtrlSpec())
   # Takes the adjoint operation to get BE(A^-1) with extra ancillas
   # Allocates registers for the LCU
-  ctrl = bb.allocate(1)
-  ancilla = bb.allocate(f_A.ancilla_bitsize)
-  resource = bb.allocate(f_A.resource_bitsize)
+  ctrl = bb.add(ZeroState())
+  ancilla = bb.add(IntState(val = 0, bitsize = f_A.ancilla_bitsize))
+  resource = bb.add(IntState(val = 0, bitsize = f_A.resource_bitsize))
   f_a_c_inv = f_A_controlled.adjoint()
   f_a_c_adj_inv = f_A_Poly_Adj.adjoint()
   # performs operation
@@ -259,9 +259,9 @@ def qlsp_solver_prepared(A, system, bb):
   f_A_Poly_Adj= f_A_Poly_Adj.controlled(CtrlSpec())
   # Takes the adjoint operation to get BE(A^-1) with extra ancillas
   # Allocates registers for the LCU
-  ctrl = bb.allocate(1)
-  ancilla = bb.allocate(f_A.ancilla_bitsize)
-  resource = bb.allocate(f_A.resource_bitsize)
+  ctrl = bb.allocate(ZeroState())
+  ancilla = bb.add(IntState(val = 0, bitsize = f_A.ancilla_bitsize))
+  resource = bb.add(IntState(val = 0, bitsize = f_A.resource_bitsize))
   f_a_c_inv = f_A_controlled.adjoint()
   f_a_c_adj_inv = f_A_Poly_Adj.adjoint()
   # performs operation
