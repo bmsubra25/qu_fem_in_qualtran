@@ -250,7 +250,7 @@ def qlsp_solver(n, A, b, bb):
   circuit = bb.finalize(system = system)
   return circuit
     
-def qlsp_solver_prepared(n, A, b, bb):
+def qlsp_solver_prepared(A, system, bb):
   # prepares QSVT
   f_A = return_qsvt(A) # P(A) + iQ(A)
   f_A_Poly_Adj = return_qsvt_op(A)# P(A)-iQ(A)
