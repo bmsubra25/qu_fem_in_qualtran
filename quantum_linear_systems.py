@@ -20,6 +20,7 @@ import math
 from qualtran.bloqs.basic_gates import Rz
 import random
 from itertools import product
+from qualtran.bloqs.basic_gates import IntState
 from typing import *
 import numpy as np
 import sympy
