@@ -259,7 +259,7 @@ def qlsp_solver_prepared(A, system, bb):
   f_A_Poly_Adj= f_A_Poly_Adj.controlled(CtrlSpec())
   # Takes the adjoint operation to get BE(A^-1) with extra ancillas
   # Allocates registers for the LCU
-  ctrl = bb.allocate(ZeroState())
+  ctrl = bb.allocate(IntState(val = 0, bitsize = 1))
   ancilla = bb.add(IntState(val = 0, bitsize = f_A.ancilla_bitsize))
   resource = bb.add(IntState(val = 0, bitsize = f_A.resource_bitsize))
   f_a_c_inv = f_A_controlled.adjoint()
