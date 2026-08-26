@@ -453,7 +453,7 @@ def generate_gauss_tuples_plain(G, numel, d):
     point_list = list(point)
     for x_k in point:
       weight = weight * 2/((1-(x_k ** 2))* ( (poly_deriv(x_k))**2))
-    point_list.append(weight)
+    point_list.append(weight * ((1 / 2.0 * numel) ** d))
     total_list.append(tuple(point_list))
   return total_list
 
@@ -461,7 +461,7 @@ def generate_gauss_tuples_plain(G, numel, d):
 def generate_c_jk_array(j,k, nodal_basis_map, gauss_tuples):
   coeff_array = []
   for i in range(len(gauss_tuples)):
-    point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
+    point = [((float(x)+1.0)/2.0) for x in gauss_tuples[i][0:len(gauss_tuples[i])-1]]
     weight = gauss_tuples[i][-1]
     coeff_array.append(float(weight * nodal_basis_map[(j,k)](*point)))
   return coeff_array
@@ -469,7 +469,7 @@ def generate_c_jk_array(j,k, nodal_basis_map, gauss_tuples):
 def generate_c_j_array(j, nodal_functions, gauss_tuples):
   coeff_array = []
   for i in range(len(gauss_tuples)):
-    point = list(gauss_tuples[i][0:len(gauss_tuples[i])-1])
+    point = [((float(x)+1.0)/2.0) for x in gauss_tuples[i][0:len(gauss_tuples[i])-1]]
     weight = gauss_tuples[i][-1]
     coeff_array.append(float(weight * nodal_functions[j](*point)))
   return coeff_array
