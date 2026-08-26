@@ -222,7 +222,7 @@ def build_x(n, h, x_l_i):
   coeff_1 = h * (x_l_i+ 1)/2
   coeff_2 = h
   N = 2**n
-  coeffs = [coeff_1, (N-1)/2]
+  coeffs = [coeff_1, h * (N-1)/2]
   unitaries = [Unitary(Identity(n)),Unitary(Identity(n))]
   for i in range(n):
     coeffs.append(-(coeff_2 * 0.5 * (2**i)))
