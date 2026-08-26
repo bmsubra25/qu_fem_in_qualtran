@@ -479,6 +479,7 @@ def generate_c_j_array(j, nodal_functions, gauss_tuples):
 def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, nodal_functions, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
   c_j_array = generate_c_j_array(j, nodal_functions, plain_tuples)
+  print(c_j_array)
   function_operators = []
   for x_l in plain_tuples:
     commuting_operators = []
@@ -491,6 +492,7 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, no
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
   c_jk_array = generate_c_jk_array(j,k, nodal_basis_map, plain_tuples)
+  print(c_jk_array)
   function_operators = []
   for x_l in plain_tuples:
     commuting_operators = []
