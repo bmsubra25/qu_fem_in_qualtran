@@ -227,7 +227,7 @@ def build_x(n, h, x_l_i):
   for i in range(n):
     coeffs.append(-(coeff_2 * 0.5 * (2**i)))
     unitaries.append(Unitary(z_i(n,i)))
-  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 1)
+  return LinearCombination(tuple(unitaries),lambd = tuple(coeffs), lambd_bits = 5)
 
 
 class o_l_numel(Bloq):
@@ -487,7 +487,7 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, no
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 2)
+  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 5)
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
@@ -500,7 +500,7 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 2)
+  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 5)
 
 
 def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_map, f):
@@ -512,7 +512,7 @@ def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, no
     sum_functions = generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, f)
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, a_k_adj)))
   coeffs = [1.0 for _ in range(len(block_encodings))]
-  return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
+  return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 5)
 
 def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_functions, source_function):
   block_encodings = []
@@ -522,7 +522,7 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, noda
     sum_functions = generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, nodal_basis_functions, source_function)
     block_encodings.append(BlockEncodingProduct((a_j, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
-  return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
+  return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 5)
 
 class u_b_1d(BlockEncoding):
   def __init__(self, numnp_bits_1D):
