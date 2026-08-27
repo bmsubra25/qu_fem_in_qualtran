@@ -487,7 +487,7 @@ def generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, no
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 5)
+  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_j_array), lambd_bits = 3)
 
 def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, function):
   plain_tuples = generate_gauss_tuples_plain(G, numel, d)
@@ -500,7 +500,7 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k
       # XG,(i)ℓi
       commuting_operators.append(gauss_point_ith_coordinate(x_l[i], numel, numnp_bits_1D, d, i))
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
-  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 5)
+  return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 3)
 
 
 def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_map, f):
