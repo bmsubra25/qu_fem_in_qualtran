@@ -202,12 +202,12 @@ class QSVT_Adj_Im(BlockEncoding):
 """QSVT(Approximation of c/x on singular values)"""
 
 def return_qsvt(M):
-  coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True)
+  coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True, kappa = 2, epsilon = 0.2)
   angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs)
   angles_qsvt = qml.transform_angles(angles_qsp, "QSP","QSVT")
   return QSVT(M, angles_qsvt)
 def return_qsvt_op(M):
-  coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True)
+  coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True, kappa = 2, epsilon = 0.2)
   angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs)
   angles_qsvt = qml.transform_angles(angles_qsp, "QSP","QSVT")
   return QSVT_Adj_Im(M, angles_qsvt)
