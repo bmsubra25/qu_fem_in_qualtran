@@ -203,7 +203,7 @@ class QSVT_Adj_Im(BlockEncoding):
 
 def return_qsvt(M):
   coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True, kappa = 2, epsilon = 0.5)
-  angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs)
+  angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs, method = "laurent", chebyshev_basis = "True", signal_operator = "Wx")
   angles_qsvt = qml.transform_angles(angles_qsp, "QSP","QSVT")
   return QSVT(M, angles_qsvt)
 def return_qsvt_op(M):
