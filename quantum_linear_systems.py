@@ -268,9 +268,9 @@ def qlsp_solver_prepared(A, system, bb):
   # performs operation
   ctrl = bb.add(Hadamard(),q = ctrl)
   ctrl, system, ancilla, resource = bb.add(f_a_c_inv,ctrl = ctrl, system = system, ancilla = ancilla, resource = resource)
-  ctrl = bb.add(XGate(), q = ctrl)
+  """ctrl = bb.add(XGate(), q = ctrl)
   ctrl, system, ancilla, resource = bb.add(f_a_c_adj_inv,ctrl = ctrl, system = system, ancilla = ancilla, resource = resource)
-  ctrl = bb.add(Hadamard(),q = ctrl)
+  ctrl = bb.add(Hadamard(),q = ctrl)"""
   # Postselects registers
   bb.add(IntEffect(0, 1), val = ctrl)
   bb.add(IntEffect(0, f_A.ancilla_bitsize), val = ancilla)
