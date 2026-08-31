@@ -206,11 +206,11 @@ def return_qsvt(M):
   angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs, method = "laurent", signal_operator = "Wx")
   angles_qsvt = qml.transform_angles(angles_qsp, "QSP","QSVT")
   return QSVT(M, angles_qsvt)
-def return_qsvt_op(M):
+"""def return_qsvt_op(M):
   coeffs, scale = pyqsp.poly.PolyOneOverX().generate(return_scale = True, kappa = 2, epsilon = 0.5)
   angles_qsp = pyqsp.angle_sequence.QuantumSignalProcessingPhases(coeffs)
   angles_qsvt = qml.transform_angles(angles_qsp, "QSP","QSVT")
-  return QSVT_Adj_Im(M, angles_qsvt)
+  return QSVT_Adj_Im(M, angles_qsvt)"""
 
 """QLSP Solver"""
 
@@ -222,7 +222,7 @@ def prep_vector(bb,b, phases):
     bb.add(PhaseGradientState(bitsize=phase_bitsize).adjoint(), phase_grad=phase_gradient)
     return state
 # Assumes A and b are padded to a power of 2
-def qlsp_solver(n, A, b, bb):
+"""def qlsp_solver(n, A, b, bb):
   # prepares b state
   system = prep_vector(bb,b,bb.allocate(int(math.log(len(b),2))))
   # prepares QSVT
@@ -249,30 +249,18 @@ def qlsp_solver(n, A, b, bb):
   bb.add(IntEffect(0, f_A.ancilla_bitsize), val = ancilla)
   bb.add(IntEffect(0, f_A.resource_bitsize), val = resource)
   circuit = bb.finalize(system = system)
-  return circuit
+  return circuit"""
     
 def qlsp_solver_prepared(A, system, bb):
   # prepares QSVT
   f_A = return_qsvt(A) # P(A) + iQ(A)
-  f_A_Poly_Adj = return_qsvt_op(A)# P(A)-iQ(A)
-  # hadamard trick for performing an LCU of these
-  f_A_controlled = f_A.controlled(CtrlSpec())
-  f_A_Poly_Adj= f_A_Poly_Adj.controlled(CtrlSpec())
   # Takes the adjoint operation to get BE(A^-1) with extra ancillas
-  # Allocates registers for the LCU
-  ctrl = bb.add(IntState(val = 0, bitsize = 1))
   ancilla = bb.add(IntState(val = 0, bitsize = f_A.ancilla_bitsize))
   resource = bb.add(IntState(val = 0, bitsize = f_A.resource_bitsize))
-  f_a_c_inv = f_A_controlled.adjoint()
-  f_a_c_adj_inv = f_A_Poly_Adj.adjoint()
+  f_a_inv = f_A.adjoint()
   # performs operation
-  ctrl = bb.add(Hadamard(),q = ctrl)
-  ctrl, system, ancilla, resource = bb.add(f_a_c_inv,ctrl = ctrl, system = system, ancilla = ancilla, resource = resource)
-  """ctrl = bb.add(XGate(), q = ctrl)
-  ctrl, system, ancilla, resource = bb.add(f_a_c_adj_inv,ctrl = ctrl, system = system, ancilla = ancilla, resource = resource)
-  ctrl = bb.add(Hadamard(),q = ctrl)"""
+  system, ancilla, resource = bb.add(f_a_inv, system = system, ancilla = ancilla, resource = resource)
   # Postselects registers
-  bb.add(IntEffect(0, 1), val = ctrl)
   bb.add(IntEffect(0, f_A.ancilla_bitsize), val = ancilla)
   bb.add(IntEffect(0, f_A.resource_bitsize), val = resource)
   circuit = bb.finalize(system = system)
