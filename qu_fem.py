@@ -524,6 +524,18 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, noda
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
 
+def construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel, d, fem_coeffs):
+    coeffs = []
+    bes = []
+    tensored_basis = cartproduct(range(nen_1D), repeat = d)
+    for j,k in cartproduct(tensored_basis, repeat = 2):
+        coeffs.append(fem_coeffs[j][k])
+        a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
+        a_k = a_j_be(numnp_bits_1D, nen_1D, numel, k, d)
+        bes.append(BlockEncodingProduct((a_j, a_k.adjoint())))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 2)
+    
+
 class u_b_1d(BlockEncoding):
   def __init__(self, numnp_bits_1D):
     self.numnp_bits_1D = numnp_bits_1D
