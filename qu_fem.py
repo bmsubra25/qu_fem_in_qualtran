@@ -529,7 +529,7 @@ def construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel, d, fem_coeffs):
     bes = []
     tensored_basis = cartproduct(range(nen_1D), repeat = d)
     for j,k in cartproduct(tensored_basis, repeat = 2):
-        coeffs.append(fem_coeffs[j][k])
+        coeffs.append(fem_coeffs[(j,k)])
         a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
         a_k = a_j_be(numnp_bits_1D, nen_1D, numel, k, d)
         bes.append(BlockEncodingProduct((a_j, a_k.adjoint())))
