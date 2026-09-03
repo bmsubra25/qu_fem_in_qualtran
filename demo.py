@@ -9,23 +9,27 @@ Original file is located at
 Imports
 """
 
+import sys
 !git clone https://github.com/bmsubra25/qu_fem_in_qualtran
 !git clone https://github.com/ichuang/pyqsp
-!pip install qualtran
-!pip install pennylane cirq
-!pip install qsimcirq
+!{sys.executable} -m pip install --ignore-installed blinker
+!{sys.executable} -m pip install qualtran quimb cotengra
+!pip install pennylane
 
 """Imports"""
 
 import qualtran
 import importlib
-import qsimcirq
+from qualtran.bloqs.basic_gates import IntState
 import pennylane as qml
 from pennylane.wires import Wires
 from qualtran.bloqs.mcmt import MultiAnd
 from qualtran.drawing import show_bloq
 from qualtran.bloqs.mcmt import And
+import jax
+import jax.numpy as jnp
 import inspect
+import time
 from pathlib import Path
 from qualtran.bloqs.basic_gates import Toffoli
 from qualtran.simulation.tensor import cbloq_to_quimb
@@ -38,6 +42,7 @@ from itertools import combinations
 import math
 import random
 from typing import *
+from qu_fem_in_qualtran.quantum_linear_systems import return_qsvt
 
 from qu_fem_in_qualtran.qu_fem import construct_source_vector_diag
 from qu_fem_in_qualtran.qu_fem import construct_finite_element_array
@@ -48,7 +53,6 @@ from qu_fem_in_qualtran.quantum_linear_systems import (
 )
 from qualtran.simulation.tensor import bloq_to_dense
 
-import cirq
 import numpy as np
 import pennylane as qml
 import pyqsp
@@ -60,7 +64,6 @@ import sympy as sp
 from numpy.polynomial import Chebyshev
 from scipy.linalg import sqrtm
 from sympy import degree, diff, legendre
-
 from qualtran import (
     Bloq,
     BloqBuilder,
@@ -75,6 +78,7 @@ from qualtran import (
     cirq_interop,
 )
 from qu_fem_in_qualtran.qu_fem import AdjointBlockEncoding
+from qu_fem_in_qualtran.qu_fem import construct_cec_fem_diag
 from qualtran.bloqs import *
 from qualtran.bloqs.arithmetic import *
 from qualtran.bloqs.arithmetic.permutation import Permutation
@@ -95,7 +99,11 @@ from qualtran.bloqs.basic_gates import (
     XGate,
     ZeroState,
     ZGate,
+
 )
+from qualtran.simulation.tensor import cbloq_to_quimb
+from qu_fem_in_qualtran.qu_fem import *
+
 from qualtran.bloqs.block_encoding import (
     BlockEncoding,
     LinearCombination,
@@ -103,6 +111,29 @@ from qualtran.bloqs.block_encoding import (
     TensorProduct,
     Unitary,
 )
+import heapq
+import time
+import gc
+from dataclasses import dataclass
+
+import numpy as np
+import quimb.tensor as qtn
+
+from qualtran import Side, LeftDangle, RightDangle
+import numpy as np
+import quimb
+import autoray
+import numpy as np
+import pennylane as qml
+
+from qualtran._infra.controlled import Controlled
+
+from qualtran.simulation.tensor._tensor_data_manipulation import (
+   active_space_for_ctrl_spec,
+   eye_tensor_for_signature,
+   tensor_shape_from_signature,
+)
+from qu_fem_in_qualtran.qu_fem import construct_cec_fem_matrix
 
 from qualtran.bloqs.bookkeeping import Partition
 from qualtran.bloqs.data_loading.qrom import QROM
@@ -123,6 +154,68 @@ from qualtran.drawing import (
     show_counts_sigma,
 )
 
+"""C[AND] Fix"""
+
+if not hasattr(
+   Controlled,
+   "_original_tensor_data_non_thru_patch",
+):
+   Controlled._original_tensor_data_non_thru_patch = (
+       Controlled._tensor_data
+   )
+
+
+def patched_controlled_tensor_data(self):
+
+   data = eye_tensor_for_signature(
+       self.signature
+   )
+
+   subbloq_shape = tensor_shape_from_signature(
+       self.subbloq.signature
+   )
+
+
+   subbloq_tensor = (
+       self.subbloq.tensor_contract()
+   )
+
+
+   if subbloq_shape:
+       subbloq_tensor = np.asarray(
+           subbloq_tensor
+       ).reshape(
+           subbloq_shape
+       )
+
+   active_idx = (
+       active_space_for_ctrl_spec(
+           self.signature,
+           self.ctrl_spec,
+       )
+   )
+
+   data[
+       active_idx
+   ] = subbloq_tensor
+
+
+   return data
+
+
+
+
+Controlled._tensor_data = (
+   patched_controlled_tensor_data
+)
+
+
+def restore_original_controlled_tensor_data():
+   Controlled._tensor_data = (
+       Controlled
+       ._original_tensor_data_non_thru_patch
+   )
+
 """Helper Functions"""
 
 def generate_vars(d):
@@ -139,7 +232,7 @@ def generate_lagrange_basis_1D(p, v, index):
   return sp.Poly(poly, v)
 
 def generate_lagrange_basis(p, indices):
-  vars = list(generate_vars(len(indices))) if type(generate_vars(len(indices))) != list else generate_vars(len(indices))
+  vars = [generate_vars(len(indices))] if type(generate_vars(len(indices))) != list else generate_vars(len(indices))
   func = 1
   for i in range(len(indices)):
     func = func * generate_lagrange_basis_1D(p, vars[i], indices[i])
@@ -148,14 +241,17 @@ def generate_lagrange_basis(p, indices):
 """Mesh Creation/Mesh Parameter Setting"""
 
 # number of nodes per element. Set nen = (p+1)^d where p is the number of 1d local nodes you want
-G = 4
+G = 2
 p = 1
 nen_1D = 2
 numel_1D = 1
 numnp_1D = 2
-numnp_bits_1D = 1
-d = 2
-numnp = 4
+numnp_bits_1D = math.ceil(math.log(numnp_1D, 2))
+d = 1
+numnp_bits = d * numnp_bits_1D
+# one dimensional
+numnp = ((p+1)**d - 1) * (numel_1D ** d) + 1
+print(numnp)
 
 """Function Definitions"""
 
@@ -172,24 +268,96 @@ for j,k in cartproduct(tensored_basis, repeat = 2):
 
 for j,k in cartproduct(tensored_basis, repeat = 2):
     nodal_basis_map_m[(j,k)] = nodal_reference_functions[j]*nodal_reference_functions[k]
-print(tensored_basis)
+# Setup for constant elemental contributions
+k_el = {}
+m_el = {}
+variables = generate_vars(d)
+dims = [0, 1/ numel_1D]
+args = [([variables][i], *dims) for i in range(d)]
+print(args)
+for j,k in cartproduct(tensored_basis, repeat = 2):
+  k_el[(j,k)] = sp.integrate(nodal_basis_map_k[(j,k)].as_expr(), *args)
+  m_el[(j,k)] = sp.integrate(nodal_basis_map_m[(j,k)].as_expr(), *args)
+print(k_el)
 
 """Poisson's Problem"""
 
-x = sp.symbols("x")
-y = sp.symbols("y")
-source_function = sp.poly(x*y)
-diag_operator = construct_source_vector_diag(G, nen_1D, numel_1D, numnp, numnp_bits_1D, d, nodal_reference_functions, source_function)
-#stiffness_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_k, source_function)
-#mass_matrix = construct_finite_element_array(G, p+1, numel_1D, numnp, numnp_bits_1D, d, nodal_basis_map_m, source_function)
+stiffness_matrix = construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel_1D, d, k_el)
+mass_matrix = construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel_1D, d, m_el)
+L = LinearCombination(block_encodings = (stiffness_matrix, mass_matrix), lambd = (1.0,1.0), lambd_bits = 1)
+print(f"system {stiffness_matrix.system_bitsize}, ancilla {stiffness_matrix.ancilla_bitsize}, resource {stiffness_matrix.resource_bitsize}, alpha {stiffness_matrix.alpha}, epsilon: {stiffness_matrix.epsilon}  stiffness")
+print(f"system {mass_matrix.system_bitsize}, ancilla {mass_matrix.ancilla_bitsize}, resource {mass_matrix.resource_bitsize}, alpha {mass_matrix.alpha}, epsilon: {mass_matrix.epsilon} mass")
+print(f"system {L.system_bitsize}, ancilla {L.ancilla_bitsize}, resource {L.resource_bitsize}, alpha {L.alpha}, epsilon: {L.epsilon} total")
 
-print(f"system {diag_operator.system_bitsize}, ancilla {diag_operator.ancilla_bitsize}, resource {diag_operator.resource_bitsize}, alpha {diag_operator.alpha}, epsilon: {diag_operator.epsilon} diagonal")
-#print(f"system {stiffness_matrix.system_bitsize}, ancilla {stiffness_matrix.ancilla_bitsize}, resource {stiffness_matrix.resource_bitsize}, alpha {stiffness_matrix.alpha}, epsilon: {stiffness_matrix.epsilon}  stiffness")
-#print(f"system {mass_matrix.system_bitsize}, ancilla {mass_matrix.ancilla_bitsize}, resource {mass_matrix.resource_bitsize}, alpha {mass_matrix.alpha}, epsilon: {mass_matrix.epsilon} mass")
+x = sp.symbols("x_0")
+#y = sp.symbols("y")
+source_function = sp.poly(x, [x])
+f_el = {}
+for j in tensored_basis:
+  f_el[j] = sp.integrate(source_function.as_expr()* nodal_reference_functions[j].as_expr(),*args)
+print(f_el)
+diag_operator = construct_cec_fem_diag(numnp_bits_1D, nen_1D, numel_1D, d, f_el)
+print(f"system {diag_operator.system_bitsize}, ancilla {diag_operator.ancilla_bitsize}, resource {diag_operator.resource_bitsize}, alpha {diag_operator.alpha}, epsilon: {diag_operator.epsilon}  diag")
+
+"""Boundary Conditons(0 value at boundaries)"""
 
 bb = BloqBuilder()
-system = bb.allocate(diag_operator.system_bitsize)
-ancilla = bb.allocate(diag_operator.ancilla_bitsize)
-resource = bb.allocate(diag_operator.resource_bitsize)
-system, ancilla, resource = bb.add(diag_operator, system = system, ancilla = ancilla, resource = resource)
-out = bb.finalize(system = system, ancilla = ancilla, resource = resource)
+# left side construction
+pint_be = u_b(numnp_bits_1D,d)
+l_dirich = LinearCombination(block_encodings = (BlockEncodingProduct((pint_be,L,pint_be)), Unitary(Identity(numnp_bits)),pint_be),lambd = (1.0, 1.0, -1.0), lambd_bits = 1)
+l_inverse = AdjointBlockEncoding(return_qsvt(l_dirich))
+
+"""Load Vector Preparation"""
+
+system_bitsize = max(l_inverse.system_bitsize, diag_operator.system_bitsize)
+ancilla_bitsize = max(l_inverse.ancilla_bitsize, diag_operator.ancilla_bitsize)
+resource_bitsize = max(l_inverse.resource_bitsize, diag_operator.resource_bitsize)
+print(f"system_bitsize {system_bitsize} ancilla_bitsize {ancilla_bitsize} resource_bitsize {resource_bitsize}")
+# prepares superposition
+system = bb.add(IntState(val = 0, bitsize = system_bitsize))
+unif = PrepareUniformSuperposition(n = 2**system_bitsize)
+system = bb.add(unif, target = system)
+ancilla = bb.add(IntState(val = 0, bitsize = ancilla_bitsize))
+resource = bb.add(IntState(val = 0, bitsize = resource_bitsize))
+# APplies L^-1 @ diag_f
+ancilla_bits = bb.split(ancilla)
+ancilla_use = bb.join(ancilla_bits[0:diag_operator.ancilla_bitsize])
+resource_bits = bb.split(resource)
+resource_use = bb.join(resource_bits[0:diag_operator.resource_bitsize])
+system, ancilla_use, resource_use = bb.add(diag_operator, system = system, ancilla = ancilla_use, resource = resource_use)
+ancilla_bits_used = bb.split(ancilla_use)
+resource_bits_used = bb.split(resource_use)
+ancilla = bb.join(np.concatenate((np.asarray(ancilla_bits_used), np.asarray(ancilla_bits[diag_operator.ancilla_bitsize:]))))
+resource = bb.join(np.concatenate((np.asarray(resource_bits_used), np.asarray(resource_bits[diag_operator.resource_bitsize:]))))
+# Enforcing Boundary Conditions
+ancilla_bits = bb.split(ancilla)
+ancilla_use = bb.join(ancilla_bits[0:pint_be.ancilla_bitsize])
+system, ancilla_use = bb.add(pint_be, system = system, ancilla = ancilla_use)
+ancilla_bits_used = bb.split(ancilla_use)
+ancilla = bb.join(np.concatenate((np.asarray(ancilla_bits_used), np.asarray(ancilla_bits[pint_be.ancilla_bitsize:]))))
+# Solving QLSP
+system, ancilla, resource = bb.add(l_inverse, system = system, ancilla = ancilla, resource = resource)
+# postselection
+bb.add(IntEffect(0, ancilla_bitsize), val = ancilla)
+bb.add(IntEffect(0, resource_bitsize), val = resource)
+answer = bb.finalize(system = system)
+
+"""QLSP Solving"""
+
+print(time.time())
+flat = qualtran.simulation.tensor.flatten_for_tensor_contraction(answer)
+print(time.time())
+
+network = cbloq_to_quimb(flat)
+
+print(network.num_tensors)
+print(network.num_indices)
+
+jax.config.update("jax_enable_x64", True)
+
+result = network.contract(backend = "jax", optimize = "greedy", output = network.outer_inds())
+true = np.array([(x[0]/2- (x[0] ** 3))/6 for x in tensored_basis])
+normalized_true = true / np.linalg.norm(true)
+normalized_result = result / np.linalg.norm(result)
+accuracy = abs(np.vdot(normalized_true,normalized_result)) ** 2
+print(f"normalized_true {normalized_true} normalized_result {normalized_result} accuracy {accuracy}")
