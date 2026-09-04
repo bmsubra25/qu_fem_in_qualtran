@@ -664,7 +664,7 @@ def construct_cec_fem_matrix_special_1D(numnp_bits_1D, fem_coeffs):
     bes = []
     for j,k in cartproduct(range(2), repeat = 2):
         if fem_coeffs[(j,k)] != 0:
-            coeffs.append(fem_coeffs[(j,k)])
+            coeffs.append(fem_coeffs[((j),(k))])
             bes.append(unit_interaction(numnp_bits_1D, j, k))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
 
@@ -673,6 +673,6 @@ def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
     bes = []
     for j in range(2):
         if f_el[j] != 0:
-            coeffs.append(f_el[j])
+            coeffs.append(f_el[(j)])
             bes.append(unit_interaction(numnp_bits_1D, j, j))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
