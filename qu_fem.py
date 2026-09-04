@@ -635,7 +635,6 @@ class base_interaction(Bloq):
   def build_composite_bloq(self, bb, *, system, ancilla):
     controlled_not = XGate().controlled(CtrlSpec(cvs = 2**self.n_bits - 1, qdtypes = QAny(self.n_bits)))
     system, ancilla = bb.add(controlled_not, ctrl = system, q = ancilla)
-    ancilla = bb.add(XGate(), q = ancilla)
     return {"system": system , "ancilla": ancilla}
    
 class unit_interaction(BlockEncoding):
