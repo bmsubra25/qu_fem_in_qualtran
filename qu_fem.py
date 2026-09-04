@@ -709,6 +709,6 @@ def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
         j = (j,)
         k = (k,)
         if fem_coeffs[(j,k)] != 0:
-            coeffs.append(k_el[(j,k)+m_el[(j,k)])
+            coeffs.append(k_el[(j,k)]+m_el[(j,k)])
             bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
