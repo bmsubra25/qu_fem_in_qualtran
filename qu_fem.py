@@ -373,13 +373,13 @@ class log_numel_projector(BlockEncoding):
     self.numel = numel
   @property
   def signature(self):
-    return Signature([Register("system",QAny(self.numnp_bits_1D)),Register("ancilla",QAny(self.numnp_bits_1D+1))])
+    return Signature([Register("system",QAny(self.numnp_bits_1D)),Register("ancilla",QAny(1))])
   @property
   def alpha(self):
     return 1
   @property
   def ancilla_bitsize(self):
-    return self.numnp_bits_1D+1
+    return 1
   @property
   def epsilon(self):
     return 0
@@ -388,27 +388,16 @@ class log_numel_projector(BlockEncoding):
     return 0
   @property
   def signal_state(self):
-    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([self.numnp_bits_1D+1]))
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
   @property
   def system_bitsize(self):
     return self.numnp_bits_1D
   def build_composite_bloq(self,bb, *, system, ancilla):
-    ancilla_bits = bb.split(ancilla)
-    numel_reg = bb.join(ancilla_bits[0:len(ancilla_bits)-1])
-    flag = bb.join(ancilla_bits[len(ancilla_bits)-1:])
-    numel_reg_bits = bb.split(numel_reg)
-    for index in range(self.numnp_bits_1D):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numnp_bits_1D - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numnp_bits_1D - index - 1])
-    numel_reg = bb.join(numel_reg_bits)
-    numel_reg, system , flag = bb.add(GreaterThan(a_bitsize = self.numnp_bits_1D, b_bitsize = self.numnp_bits_1D), a = numel_reg, b = system, target = flag)
-    numel_reg_bits = bb.split(numel_reg)
-    for index in range(self.numnp_bits_1D):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numnp_bits_1D - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numnp_bits_1D - index - 1])
-    flag = bb.add(XGate(),q = flag)
-    ancilla = bb.join(np.asarray([*numel_reg_bits,flag]))
+    operation = LessThanConstant(bitsize = self.numnp_bits_1D, less_than_val = self.numel)
+    system, ancilla = bb.add(operation, x = system, target = ancilla)
+    ancilla = bb.add(XGate(), q = ancilla)
     return {"system": system, "ancilla": ancilla}
+    
 def generate_x_l_i_el(x_l_i, numel, n_bits):
   inner =  build_x(n_bits, 1/numel, x_l_i)
   return BlockEncodingProduct((log_numel_projector(n_bits,numel), inner))
