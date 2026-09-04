@@ -701,3 +701,14 @@ def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
             coeffs.append(f_el[j])
             bes.append(unit_interaction(numnp_bits_1D, j[0], j[0]))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
+
+def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
+    coeffs = []
+    bes = []
+    for j,k in cartproduct(range(2), repeat = 2):
+        j = (j,)
+        k = (k,)
+        if fem_coeffs[(j,k)] != 0:
+            coeffs.append(k_el[(j,k)+m_el[(j,k)])
+            bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
