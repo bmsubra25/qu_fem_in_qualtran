@@ -416,6 +416,56 @@ def generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k
     function_operators.append(MQET(commuting_operators, 3, d-1,function, function.gens))
   return LinearCombination(block_encodings = tuple(function_operators), lambd = tuple(c_jk_array), lambd_bits = 2)
 
+class edited_product(BlockEncoding):
+  def __init__(self, block_encodings):
+    self.block_encodings = block_encodings
+    self.s = max([block_encoding.system_bitsize for block_encoding in self.block_encodings])
+    self.a = max([block_encoding.ancilla_bitsize for block_encoding in self.block_encodings])
+    self.r = max([block_encoding.resource_bitsize for block_encoding in self.block_encodings])
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.s)), Register("ancilla", QAny(self.a)), Register("resource", QAny(self.r))])
+  @property
+  def alpha(self):
+    return np.prod([be.alpha for be in self.block_encodings])
+  @property
+  def ancilla_bitsize(self):
+    return self.a
+  @property
+  def epsilon(self):
+    first_term = self.alpha
+    second_term = np.prod([be.alpha+be.epsilon for be in self.block_encodings])
+    return second_term - first_term
+  @property
+  def system_bitsize(self):
+    return self.s
+  @property
+  def resource_bitsize(self):
+    return self.r
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([self.a]))
+  def build_composite_bloq(self, bb, *, system, ancilla, resource):
+    for be in self.block_encodings[::-1]:
+      if be.ancilla_bitsize == 0 and be.resource_bitsize == 0:
+        system = bb.add(be, system = system)
+      elif be.resource_bitsize == 0:
+        ancilla_bits = bb.split(ancilla)
+        ancilla_used = bb.join(ancilla_bits[0:be.ancilla_bitsize])
+        system, ancilla_used = bb.add(be, system = system, ancilla = ancilla_used)
+        ancilla_bits_used = bb.split(ancilla_used)
+        ancilla = bb.join([*ancilla_bits_used, *ancilla_bits[be.ancilla_bitsize:]])
+      else:
+        ancilla_bits = bb.split(ancilla)
+        resource_bits = bb.split(resource)
+        ancilla_used = bb.join(ancilla_bits[0:be.ancilla_bitsize])
+        resource_used = bb.join(resource_bits[0:be.resource_bitsize])
+        system, ancilla_used, resource_used = bb.add(be, system = system, ancilla = ancilla_used, resource = resource_used)
+        ancilla_bits_used = bb.split(ancilla_used)
+        resource_bits_used = bb.split(resource_used)
+        ancilla = bb.join([*ancilla_bits_used, *ancilla_bits[be.ancilla_bitsize:]])
+        resource = bb.join([*resource_bits_used,*resource_bits[be.resource_bitsize:]])
+    return {"system": system, "ancilla": ancilla, "resource": resource}
 
 def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_map, f):
   block_encodings = []
@@ -424,7 +474,7 @@ def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, no
     a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
     a_k_adj = AdjointBlockEncoding(a_j_be(numnp_bits_1D, nen_1D, numel, k, d))
     sum_functions = generate_function_operator_lcu_array(G, numel, numnp, numnp_bits_1D, d, j, k, nodal_basis_map, f)
-    block_encodings.append(BlockEncodingProduct((a_j, sum_functions, a_k_adj)))
+    block_encodings.append(edited_product((a_j, sum_functions, a_k_adj)))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
 
@@ -434,7 +484,7 @@ def construct_source_vector_diag(G, nen_1D, numel, numnp, numnp_bits_1D, d, noda
   for j in tensored_basis:
     a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
     sum_functions = generate_function_operator_lcu_diag(G, numel, numnp, numnp_bits_1D, d, j, nodal_basis_functions, source_function)
-    block_encodings.append(BlockEncodingProduct((a_j, sum_functions, AdjointBlockEncoding(a_j))))
+    block_encodings.append(edited_product((a_j, sum_functions, AdjointBlockEncoding(a_j))))
   coeffs = [1.0 for _ in range(len(block_encodings))]
   return LinearCombination(block_encodings = block_encodings, lambd = tuple(coeffs), lambd_bits = 1)
 
