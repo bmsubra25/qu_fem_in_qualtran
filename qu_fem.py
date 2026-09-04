@@ -634,7 +634,7 @@ class base_interaction(Bloq):
     return Signature([Register("system", QAny(self.n_bits)), Register("ancilla", QAny(1))])
   def build_composite_bloq(self, bb, *, system, ancilla):
     controlled_not = XGate().controlled(CtrlSpec(cvs = 0, qdtypes = QAny(self.n_bits)))
-    system, ancilla = bb.add(controlled_not, ctrl = system, target = ancilla)
+    system, ancilla = bb.add(controlled_not, ctrl = system, q = ancilla)
     ancilla = bb.add(XGate(), q = ancilla)
     return {"system": system , "ancilla": ancilla}
    
