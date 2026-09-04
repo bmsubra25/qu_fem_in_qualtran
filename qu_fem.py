@@ -236,23 +236,10 @@ class o_l_numel(Bloq):
     self.numel_bits = numel_bits
   @property
   def signature(self):
-    return Signature([Register("el", QAny(self.numel_bits)),Register("ancilla", QAny(1+1+self.numel_bits + 1))])
+    return Signature([Register("el", QAny(self.numel_bits)),Register("ancilla", QAny(1))])
   def build_composite_bloq(self, bb, *, el, ancilla):
-    ancilla_bits = bb.split(ancilla)
-    numel_reg = bb.join(ancilla_bits[:self.numel_bits])
-    flag = bb.join(ancilla_bits[self.numel_bits:self.numel_bits+1])
-    numel_reg_bits = bb.split(numel_reg)
-    for index in range(self.numel_bits):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    numel_reg = bb.join(numel_reg_bits)
-    numel_reg, el , flag = bb.add(GreaterThan(a_bitsize = self.numel_bits, b_bitsize = self.numel_bits), a = numel_reg, b = el, target = flag)
-    numel_reg_bits = bb.split(numel_reg)
-    flag = bb.add(XGate(), q = flag)
-    for index in range(self.numel_bits):
-      if (self.numel >> index) & 1:
-        numel_reg_bits[self.numel_bits - index - 1] = bb.add(XGate(), q = numel_reg_bits[self.numel_bits - index - 1])
-    ancilla = bb.join(np.asarray([*numel_reg_bits,flag, *ancilla_bits[self.numel_bits+1:]]))
+    operation = LessThanConstant(bitsize = self.numel_bits, less_than_val = self.numel)
+    el, ancilla = bb.add(operation, x = el, target = ancilla)
     return {"el": el, "ancilla": ancilla}
 
 class O_IX_1D(Bloq):
@@ -261,42 +248,27 @@ class O_IX_1D(Bloq):
     self.numnp_bits_1D = numnp_bits_1D
     self.j = j
     self.numel = numel
-
   @property
   def signature(self):
-    return Signature([Register("system", QAny(self.numnp_bits_1D)), Register("ancilla", QAny(1+1+1+self.numnp_bits_1D))])
+    return Signature([Register("system", QAny(self.numnp_bits_1D)), Register("ancilla", QAny(2))])
   def build_composite_bloq(self, bb, *, system, ancilla):
-    ancilla_bits = bb.split(ancilla)
-    # Creatring j
-    ctrl = ancilla_bits[0]
-    extra_bit = ancilla_bits[1]
-    j_reg = bb.join(ancilla_bits[2:])
-    j_reg_bits = bb.split(j_reg)
-    for index in range(self.numnp_bits_1D+1):
-      if (self.j >> index) & 1:
-        j_reg_bits[self.numnp_bits_1D+1 - index - 1] = bb.add(XGate(), q = j_reg_bits[self.numnp_bits_1D+1 - index - 1])
-    j_reg = bb.join(j_reg_bits)
-    # allocating and setting control
-    ctrl = bb.add(XGate(), q = ctrl)
-    # Splitting and adding extra bits for modular ops
-    extra_bit_split = bb.split(extra_bit)
-    system_bits = bb.split(system)
-    system_extended = bb.join(np.concatenate([extra_bit_split, system_bits]))
-    # Applying ops
+    # gate defintiions
+    add_gate = AddK(dtype = QUInt(self.numnp_bits_1D), k = self.j)
     mul_gate = CModMulK(QAny(self.numnp_bits_1D+1), k = self.nen - 1 , mod= 2 ** self.numnp_bits_1D)
-    ctrl, system_extended = bb.add(mul_gate, ctrl = ctrl, x = system_extended)
-    j_reg, system_extended = bb.add(ModAdd(bitsize = self.numnp_bits_1D+1, mod = 2**self.numnp_bits_1D), x = j_reg, y = system_extended)
+    # setting
+    buffer, ctrl = bb.split(ancilla)
+    system_bits = bb.split(system)
+    system_buffered = bb.join([buffer,*system_bits])
+    # Operation 1
     ctrl = bb.add(XGate(), q = ctrl)
-    # Splitting and freeing
-    system_extended_bits = bb.split(system_extended)
-    extra_bit = system_extended_bits[0]
-    system = bb.join(system_extended_bits[1:])
-    j_reg_bits = bb.split(j_reg)
-    for index in range(self.numnp_bits_1D+1):
-      if (self.j >> index) & 1:
-        j_reg_bits[self.numnp_bits_1D+1 - index - 1] = bb.add(XGate(), q = j_reg_bits[self.numnp_bits_1D+1 - index - 1])
-    # freeing
-    ancilla = bb.join(np.asarray([ctrl, extra_bit, *j_reg_bits]))
+    ctrl, system_buffered = bb.add(mul_gate, ctrl = ctrl, x = system_buffered)
+    ctrl = bb.add(XGate(), q = ctrl)
+    # rejoining
+    system_buffered_bits = bb.split(system_buffered)
+    ancilla = bb.join([ctrl,system_buffered_bits[0]])
+    system = bb.join(system_buffered_bits[1:])
+    # Operation 2
+    system = bb.add(add_gate, x = system)
     return {"system": system, "ancilla": ancilla}
 
 class a_j_block_encoding_1D(BlockEncoding):
@@ -307,13 +279,13 @@ class a_j_block_encoding_1D(BlockEncoding):
     self.j = j
   @property
   def signature(self):
-    return Signature([Register("system", QAny(self.numnp_bits_1D)),Register("ancilla", QAny(1+1+1+self.numnp_bits_1D))])
+    return Signature([Register("system", QAny(self.numnp_bits_1D)),Register("ancilla", QAny(2))])
   @property
   def alpha(self):
     return 1
   @property
   def ancilla_bitsize(self):
-    return 1+1+1+self.numnp_bits_1D
+    return 2
   @property
   def epsilon(self):
     return 0
@@ -322,12 +294,15 @@ class a_j_block_encoding_1D(BlockEncoding):
     return 0
   @property
   def signal_state(self):
-    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1+1+1+self.numnp_bits_1D]))
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([2]))
   @property
   def system_bitsize(self):
     return self.numnp_bits_1D
   def build_composite_bloq(self,bb, *, system, ancilla):
-    system, ancilla = bb.add(self.oracle_l_numel, el = system, ancilla = ancilla)
+    flag, rest = bb.split(ancilla)
+    system, flag = bb.add(self.oracle_l_numel, el = system, ancilla = flag)
+    flag = bb.add(XGate(), q = flag)
+    ancilla = bb.join([rest, flag])
     system, ancilla = bb.add(self.oracle_ix, system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
 
