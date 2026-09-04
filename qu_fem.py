@@ -534,21 +534,23 @@ def construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel, d, fem_coeffs):
     bes = []
     tensored_basis = cartproduct(range(nen_1D), repeat = d)
     for j,k in cartproduct(tensored_basis, repeat = 2):
-        coeffs.append(fem_coeffs[(j,k)])
-        a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
-        a_k = a_j_be(numnp_bits_1D, nen_1D, numel, k, d)
-        bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_k))))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 2)
+        if fem_coeffs[(j,k)] != 0:
+            coeffs.append(fem_coeffs[(j,k)])
+            a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
+            a_k = a_j_be(numnp_bits_1D, nen_1D, numel, k, d)
+            bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_k))))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
 
 def construct_cec_fem_diag(numnp_bits_1D, nen_1D, numel_1D, d, f_el):
     coeffs = []
     bes = []
     tensored_basis = cartproduct(range(nen_1D), repeat = d)
     for j in tensored_basis:
-        coeffs.append(f_el[j])
-        a_j = a_j_be(numnp_bits_1D, nen_1D, numel_1D, j, d)
-        bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_j))))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 2)
+        if f_el[j] != 0:
+            coeffs.append(f_el[j])
+            a_j = a_j_be(numnp_bits_1D, nen_1D, numel_1D, j, d)
+            bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_j))))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     
 
 class u_b_1d(BlockEncoding):
