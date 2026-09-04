@@ -614,3 +614,65 @@ class u_b(BlockEncoding):
   def build_composite_bloq(self,bb, *, system, ancilla):
     system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
+      
+class unit_interaction(BlockEncoding):
+  def __init__(self, numnp_bits_1D, j, k):
+    self.j = j
+    self.k = k
+    self.numnp_bits_1D = numnp_bits_1D
+    self.shift_right = mod_shift(numnp_bits_1D)
+    self.shift_left = mod_shift(numnp_bits_1D).adjoint()
+    self.a_zero_zero = base_interaction(numnp_bits_1D)
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.numnp_bits_1D)), Register("ancilla", QAny(1))])
+  @property
+  def alpha(self):
+    return 1
+  @property
+  def ancilla_bitsize(self):
+    return 1
+  @property
+  def epsilon(self):
+    return 0
+  @property
+  def resource_bitsize(self):
+    return 0
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
+  @property
+  def system_bitsize(self):
+    return self.numnp_bits_1D
+  def build_composite_bloq(self, bb, *, system, ancilla):
+    if self.j == 0 and self.k == 0:
+      system, ancilla = bb.add(self.a_zero_zero, system = system, ancilla = ancilla)
+    elif self.j == 0 and self.k == 1:
+      system = bb.add(self.shift_left, system = system)
+      system, ancilla = bb.add(self.a_zero_zero, system = system, ancilla = ancilla)
+    elif self.j == 1 and self.k == 0:
+      system, ancilla = bb.add(self.a_zero_zero, system = system, ancilla = ancilla)
+      system = bb.add(self.shift_right, system = system)
+    elif self.j == 1 and self.k == 1:
+      system = bb.add(self.shift_left, system = system)
+      system, ancilla = bb.add(self.a_zero_zero, system = system, ancilla = ancilla)
+      system = bb.add(self.shift_right, system = system)
+    return {"system": system, "ancilla": ancilla}
+
+def construct_cec_fem_matrix_special_1D(numnp_bits_1D, fem_coeffs):
+    coeffs = []
+    bes = []
+    for j,k in cartproduct(range(2), repeat = 2):
+        if fem_coeffs[(j,k)] != 0:
+            coeffs.append(fem_coeffs[(j,k)])
+            bes.append(unit_interaction(numnp_bits_1D, j, k))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
+
+def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
+    coeffs = []
+    bes = []
+    for j in range(2):
+        if f_el[j] != 0:
+            coeffs.append(f_el[j])
+            bes.append(unit_interaction(numnp_bits_1D, j, j))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
