@@ -614,7 +614,69 @@ class u_b(BlockEncoding):
   def build_composite_bloq(self,bb, *, system, ancilla):
     system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
+ class u_b_1d(BlockEncoding):
+  def __init__(self, numnp_bits_1D):
+    self.numnp_bits_1D = numnp_bits_1D
+  @property
+  def signature(self):
+    return Signature([Register("system",QAny(self.numnp_bits_1D)),Register("ancilla",QBit())])
+  @property
+  def alpha(self):
+    return 1
+  @property
+  def ancilla_bitsize(self):
+    return 1
+  @property
+  def epsilon(self):
+    return 0
+  @property
+  def resource_bitsize(self):
+    return 0
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
+  @property
+  def system_bitsize(self):
+    return self.numnp_bits_1D
+  def build_composite_bloq(self,bb, *, system, ancilla):
+    equals_zero = EqualsAConstant(bitsize = self.numnp_bits_1D, val = 0)
+    equals_edge = EqualsAConstant(bitsize = self.numnp_bits_1D, val = 2 ** self.numnp_bits_1D - 1)
+    system, ancilla = bb.add(equals_zero, x = system, target = ancilla)
+    system, ancilla = bb.add(equals_edge, x = system, target = ancilla)
+    return {"system": system, "ancilla": ancilla}
       
+class u_bd_1d(BlockEncoding):
+  def __init__(self, numnp_bits_1D):
+    self.numnp_bits_1D = numnp_bits_1D
+  @property
+  def signature(self):
+    return Signature([Register("system",QAny(self.numnp_bits_1D)),Register("ancilla",QBit())])
+  @property
+  def alpha(self):
+    return 1
+  @property
+  def ancilla_bitsize(self):
+    return 1
+  @property
+  def epsilon(self):
+    return 0
+  @property
+  def resource_bitsize(self):
+    return 0
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([1]))
+  @property
+  def system_bitsize(self):
+    return self.numnp_bits_1D
+  def build_composite_bloq(self,bb, *, system, ancilla):
+    equals_zero = EqualsAConstant(bitsize = self.numnp_bits_1D, val = 0)
+    equals_edge = EqualsAConstant(bitsize = self.numnp_bits_1D, val = 2 ** self.numnp_bits_1D - 1)
+    system, ancilla = bb.add(equals_zero, x = system, target = ancilla)
+    system, ancilla = bb.add(equals_edge, x = system, target = ancilla)
+    ancilla = bb.add(XGate(), q = ancilla)
+    return {"system": system, "ancilla": ancilla}
+
 class mod_shift(Bloq):
   def __init__(self, n_bits):
     self.n_bits = n_bits
