@@ -615,6 +615,29 @@ class u_b(BlockEncoding):
     system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
       
+class mod_shift(Bloq):
+  def __init__(self, n_bits):
+    self.n_bits = n_bits
+  @property
+  def signature(self):
+    return Signature([Register("system",QAny(self.n_bits))])
+  def build_composite_bloq(self,bb, *, system):
+    op = AddK(dtype = QUInt(self.n_bits), k = 1)
+    system = bb.add(op, x = system)
+    return {"system": system}
+
+class base_interaction(Bloq):
+  def __init__(self, n_bits):
+    self.n_bits = n_bits
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.n_bits)), Register("ancilla", QAny(1))])
+  def build_composite_bloq(self, bb, *, system, ancilla):
+    controlled_not = XGate().controlled(CtrlSpec(cvs = 0, qdtypes = QAny(self.n_bits)))
+    system, ancilla = bb.add(controlled_not, ctrl = system, target = ancilla)
+    ancilla = bb.add(XGate(), q = ancilla)
+    return {"system": system , "ancilla": ancilla}
+   
 class unit_interaction(BlockEncoding):
   def __init__(self, numnp_bits_1D, j, k):
     self.j = j
