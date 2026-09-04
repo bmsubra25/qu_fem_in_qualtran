@@ -335,6 +335,36 @@ class a_j_be(BlockEncoding):
     system, ancilla = bb.add(self.operation, system = system, ancilla = ancilla)
     return {"system": system, "ancilla": ancilla}
 
+class unit_products(BlockEncoding):
+  def __init__(self, block_encodings):
+    self.block_encodings = block_encodings
+    self.s_bits = max([be.system_bitsize for be in block_encodings])
+    self.a_bits = max([be.ancilla_bitsize for be in block_encodings])
+  @property
+  def signature(self):
+    return Signature([Register("system", QAny(self.s_bits)),Register("ancilla", QAny(self.a_bits))])
+  @property
+  def alpha(self):
+    return 1
+  @property
+  def ancilla_bitsize(self):
+    return self.a_bits
+  @property
+  def epsilon(self):
+    return 0
+  @property
+  def resource_bitsize(self):
+    return 0
+  @property
+  def signal_state(self):
+    return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([self.a_bits]))
+  @property
+  def system_bitsize(self):
+    return self.s_bits
+  def build_composite_bloq(self, bb, *, system, ancilla):
+    for be in self.block_encodings:
+      system, ancilla = bb.add(be, system = system, ancilla = ancilla)
+    return {"system": system, "ancilla": ancilla}
 """Gauss Point Operators"""
 
 class log_numel_projector(BlockEncoding):
@@ -507,7 +537,7 @@ def construct_cec_fem_matrix(numnp_bits_1D, nen_1D, numel, d, fem_coeffs):
         coeffs.append(fem_coeffs[(j,k)])
         a_j = a_j_be(numnp_bits_1D, nen_1D, numel, j, d)
         a_k = a_j_be(numnp_bits_1D, nen_1D, numel, k, d)
-        bes.append(BlockEncodingProduct((a_j, AdjointBlockEncoding(a_k))))
+        bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_k))))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 2)
 
 def construct_cec_fem_diag(numnp_bits_1D, nen_1D, numel_1D, d, f_el):
@@ -517,7 +547,7 @@ def construct_cec_fem_diag(numnp_bits_1D, nen_1D, numel_1D, d, f_el):
     for j in tensored_basis:
         coeffs.append(f_el[j])
         a_j = a_j_be(numnp_bits_1D, nen_1D, numel_1D, j, d)
-        bes.append(BlockEncodingProduct((a_j, AdjointBlockEncoding(a_j))))
+        bes.append(unit_products(block_encodings = (a_j, AdjointBlockEncoding(a_j))))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 2)
     
 
