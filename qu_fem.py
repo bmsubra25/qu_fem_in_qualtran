@@ -654,6 +654,9 @@ class CustomPrepare(PrepareOracle):
   def junk_registers(self):
     return []
   @property
+  def selection_bitsize(self):
+    return self.system_bitsize
+  @property
   def signature(self):
     return Signature(self.selection_registers)
   def build_composite_bloq(self, bb, *, selection):
