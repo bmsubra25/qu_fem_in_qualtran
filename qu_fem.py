@@ -698,7 +698,7 @@ def construct_cec_fem_matrix_special_1D(numnp_bits_1D, fem_coeffs):
             bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
     arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 2, arg.select.selection_registers[0]))
 
 def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
     coeffs = []
@@ -710,7 +710,7 @@ def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
             bes.append(unit_interaction(numnp_bits_1D, j[0], j[0]))
     arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 2, arg.select.selection_registers[0]))
 
 def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
     coeffs = []
@@ -723,4 +723,4 @@ def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
             bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
     arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 2, arg.select.selection_registers[0]))
