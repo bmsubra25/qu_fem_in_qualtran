@@ -145,19 +145,44 @@ class QSVT(BlockEncoding):
   @property
   def system_bitsize(self):
     return self.block_encoding.system_bitsize
-  def build_composite_bloq(self, bb, *, system, ancilla, resource):
-    bb.add(GlobalPhase(exponent = -1 * self.angles[0] / np.pi))
-    ancilla = bb.add(GlobalPhase(exponent = 2* self.angles[0]/ np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
-    adj = False
-    for angle in self.angles[1:]:
-      if adj:
-        system, ancilla, resource = bb.add(self.adjoint_block_encoding, system = system, ancilla = ancilla, resource = resource)
-      else:
-         system, ancilla, resource = bb.add(self.block_encoding, system = system, ancilla = ancilla, resource = resource)
-      adj = not adj
-      bb.add(GlobalPhase(exponent = -1 * angle / np.pi))
-      ancilla = bb.add(GlobalPhase(exponent = 2* angle / np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
-    return {"system": system, "ancilla": ancilla, "resource": resource}
+  def build_composite_bloq(self, bb, **soqs):
+    if self.resource_bitsize > 0:
+        system = soqs["system"]
+        ancilla = soqs["ancilla"]
+        resource = soqs["resource"]
+        bb.add(GlobalPhase(exponent = -1 * self.angles[0] / np.pi))
+        ancilla = bb.add(GlobalPhase(exponent = 2* self.angles[0]/ np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
+        adj = False
+        for angle in self.angles[1:]:
+          if adj:
+            system, ancilla, resource = bb.add(self.adjoint_block_encoding, system = system, ancilla = ancilla, resource = resource)
+          else:
+             system, ancilla, resource = bb.add(self.block_encoding, system = system, ancilla = ancilla, resource = resource)
+          adj = not adj
+          bb.add(GlobalPhase(exponent = -1 * angle / np.pi))
+          ancilla = bb.add(GlobalPhase(exponent = 2* angle / np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
+        soqs["system"] = system
+        soqs["ancilla"] = ancilla
+        soqs["resource"] = resource
+        return soqs
+    else:
+        system = soqs["system"]
+        ancilla = soqs["ancilla"]
+        bb.add(GlobalPhase(exponent = -1 * self.angles[0] / np.pi))
+        ancilla = bb.add(GlobalPhase(exponent = 2* self.angles[0]/ np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
+        adj = False
+        for angle in self.angles[1:]:
+          if adj:
+            system, ancilla = bb.add(self.adjoint_block_encoding, system = system, ancilla = ancilla)
+          else:
+             system, ancilla = bb.add(self.block_encoding, system = system, ancilla = ancilla)
+          adj = not adj
+          bb.add(GlobalPhase(exponent = -1 * angle / np.pi))
+          ancilla = bb.add(GlobalPhase(exponent = 2* angle / np.pi).controlled(CtrlSpec(qdtypes = QAny(self.ancilla_bitsize), cvs = 0)), ctrl = ancilla)
+        soqs["system"] = system
+        soqs["ancilla"] = ancilla
+        return soqs
+        
 # Implements P(A)- iQ(A)
 class QSVT_Adj_Im(BlockEncoding):
   def __init__(self, block_encoding, angles):
