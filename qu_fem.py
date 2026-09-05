@@ -24,6 +24,7 @@ import pennylane as qml
 import pyqsp
 import qualtran
 import qualtran.simulation as sim
+from qualtran.bloqs.state_preparation.prepare_base import PrepareOracle
 import sympy
 from numpy.polynomial import Chebyshev
 from qualtran.bloqs.bookkeeping import Partition
