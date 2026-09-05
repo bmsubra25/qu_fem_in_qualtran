@@ -642,20 +642,20 @@ class unit_interaction(BlockEncoding):
     return {"system": system, "ancilla": ancilla}
       
 class CustomPrepare(PrepareOracle):
-  def __init__(self, coeffs, phase_bitsize):
+  def __init__(self, coeffs, phase_bitsize, register):
     coeffs = np.array(coeffs)
     self.coeffs = coeffs / np.linalg.norm(coeffs)
     self.phase_bitsize = phase_bitsize
-    self.system_bitsize = math.ceil(math.log(len(coeffs),2))
+    self.register = register
   @property
   def selection_registers(self):
-    return  [Register("selection", QAny(self.system_bitsize)),]
+    return  [self.register]
   @property
   def junk_registers(self):
     return []
   @property
   def selection_bitsize(self):
-    return self.system_bitsize
+    return self.register.total_bits()
   @property
   def junk_bitsize(self):
     return 0
@@ -678,8 +678,9 @@ def construct_cec_fem_matrix_special_1D(numnp_bits_1D, fem_coeffs):
         if fem_coeffs[(j,k)] != 0:
             coeffs.append(fem_coeffs[(j,k)])
             bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
+    arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
 
 def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
     coeffs = []
@@ -689,8 +690,9 @@ def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
         if f_el[j] != 0:
             coeffs.append(f_el[j])
             bes.append(unit_interaction(numnp_bits_1D, j[0], j[0]))
+    arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
 
 def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
     coeffs = []
@@ -700,5 +702,6 @@ def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
         k = (k,)
         coeffs.append(k_el[(j,k)]+m_el[(j,k)])
         bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
+    arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
-    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
+    return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
