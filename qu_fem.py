@@ -425,7 +425,12 @@ class edited_product(BlockEncoding):
     self.r = max([block_encoding.resource_bitsize for block_encoding in self.block_encodings])
   @property
   def signature(self):
-    return Signature([Register("system", QAny(self.s)), Register("ancilla", QAny(self.a)), Register("resource", QAny(self.r))])
+    l = [Register("system", QAny(self.s))]
+    if self.a != 0:
+        l.append(Register("ancilla", QAny(self.a)))
+    if self.r != 0:
+        l.append(Register("resource", QAny(self.r)))
+    return Signature(l)
   @property
   def alpha(self):
     return np.prod([be.alpha for be in self.block_encodings])
@@ -446,17 +451,26 @@ class edited_product(BlockEncoding):
   @property
   def signal_state(self):
     return BlackBoxPrepare(prepare = PrepareIdentity.from_bitsizes([self.a]))
-  def build_composite_bloq(self, bb, *, system, ancilla, resource):
+  def build_composite_bloq(self, bb, **soqs):
     for be in self.block_encodings[::-1]:
       if be.ancilla_bitsize == 0 and be.resource_bitsize == 0:
+        system = soqs.get("system", None)
         system = bb.add(be, system = system)
+        soqs["system"] = system
       elif be.resource_bitsize == 0:
+        system = soqs.get("system", None)
+        ancilla = soqs.get("ancilla", None)
         ancilla_bits = bb.split(ancilla)
         ancilla_used = bb.join(ancilla_bits[0:be.ancilla_bitsize])
         system, ancilla_used = bb.add(be, system = system, ancilla = ancilla_used)
         ancilla_bits_used = bb.split(ancilla_used)
         ancilla = bb.join([*ancilla_bits_used, *ancilla_bits[be.ancilla_bitsize:]])
+        soqs["system"] = system
+        soqs["ancilla"] = ancilla
       else:
+        system = soqs.get("system", None)
+        ancilla = soqs.get("ancilla", None)
+        resource = soqs.get("resource", None)
         ancilla_bits = bb.split(ancilla)
         resource_bits = bb.split(resource)
         ancilla_used = bb.join(ancilla_bits[0:be.ancilla_bitsize])
@@ -466,7 +480,10 @@ class edited_product(BlockEncoding):
         resource_bits_used = bb.split(resource_used)
         ancilla = bb.join([*ancilla_bits_used, *ancilla_bits[be.ancilla_bitsize:]])
         resource = bb.join([*resource_bits_used,*resource_bits[be.resource_bitsize:]])
-    return {"system": system, "ancilla": ancilla, "resource": resource}
+        soqs["system"] = system
+        soqs["ancilla"] = ancilla
+        soqs["resource"] = resource
+    return soqs
 
 def construct_finite_element_array(G, nen_1D, numel, numnp, numnp_bits_1D, d, nodal_basis_map, f):
   block_encodings = []
