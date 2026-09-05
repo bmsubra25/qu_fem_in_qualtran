@@ -700,8 +700,9 @@ def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
     for j,k in cartproduct(range(2), repeat = 2):
         j = (j,)
         k = (k,)
-        coeffs.append(k_el[(j,k)]+m_el[(j,k)])
-        bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
+        if k_el[(j,k)]+m_el[(j,k)] != 0:
+            coeffs.append(k_el[(j,k)]+m_el[(j,k)])
+            bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
     arg = LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1)
     prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3, arg.select.selection_registers[0]))
