@@ -112,9 +112,8 @@ class AdjointBlockEncoding(BlockEncoding):
   @property
   def system_bitsize(self):
     return self.block_encoding.system_bitsize
-  def build_composite_bloq(self, bb, system, ancilla, resource):
-    system, ancilla, resource = bb.add(self.block_encoding.adjoint(),system = system, ancilla = ancilla, resource = resource)
-    return {"system": system, "ancilla": ancilla, "resource": resource}
+  def build_composite_bloq(self, bb, **soqs):
+    return bb.add_d(self.block_encoding.adjoint(), **soqs)
 
 """QSVT Bloq"""
 
