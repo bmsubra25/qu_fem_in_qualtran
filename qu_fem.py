@@ -649,10 +649,10 @@ class CustomPrepare(PrepareOracle):
     self.register = register
   @property
   def selection_registers(self):
-    return  [self.register]
+    return  (self.register,)
   @property
   def junk_registers(self):
-    return []
+    return ()
   @property
   def selection_bitsize(self):
     return self.register.total_bits()
