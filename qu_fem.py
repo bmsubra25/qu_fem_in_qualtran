@@ -672,7 +672,7 @@ def construct_cec_fem_matrix_special_1D(numnp_bits_1D, fem_coeffs):
         if fem_coeffs[(j,k)] != 0:
             coeffs.append(fem_coeffs[(j,k)])
             bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
-    prep_coeffs = np.sqrt([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))])
+    prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
 
 def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
@@ -683,7 +683,7 @@ def construct_cec_fem_diag_special_1D(numnp_bits_1D, f_el):
         if f_el[j] != 0:
             coeffs.append(f_el[j])
             bes.append(unit_interaction(numnp_bits_1D, j[0], j[0]))
-    prep_coeffs = np.sqrt([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))])
+    prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
 
 def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
@@ -694,5 +694,5 @@ def construct_full_l_1D(numnp_bits_1D, k_el, m_el):
         k = (k,)
         coeffs.append(k_el[(j,k)]+m_el[(j,k)])
         bes.append(unit_interaction(numnp_bits_1D, j[0], k[0]))
-    prep_coeffs = np.sqrt([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))])
+    prep_coeffs = np.sqrt(np.array([abs(coeffs[i]) * bes[i].alpha for i in range(len(bes))], dtype = float))
     return LinearCombination(block_encodings = tuple(bes), lambd = tuple(coeffs), lambd_bits = 1, prepare = CustomPrepare(prep_coeffs, 3))
