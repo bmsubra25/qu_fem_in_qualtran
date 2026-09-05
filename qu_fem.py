@@ -657,6 +657,9 @@ class CustomPrepare(PrepareOracle):
   def selection_bitsize(self):
     return self.system_bitsize
   @property
+  def junk_bitsize(self):
+    return 0
+  @property
   def signature(self):
     return Signature(self.selection_registers)
   def build_composite_bloq(self, bb, *, selection):
