@@ -660,7 +660,8 @@ class unit_interaction(BlockEncoding):
       
 class CustomPrepare(PrepareOracle):
   def __init__(self, coeffs, phase_bitsize, register):
-    coeffs = np.array(coeffs)
+    size = 2 ** register.total_bits()
+    coeffs = np.pad(np.array(coeffs), (0, size - len(coeffs)))
     self.coeffs = coeffs / np.linalg.norm(coeffs)
     self.phase_bitsize = phase_bitsize
     self.register = register
